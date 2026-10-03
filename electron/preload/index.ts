@@ -38,7 +38,8 @@ contextBridge.exposeInMainWorld('fiscalApi', {
     consultNFe: (companyId: number) => ipcRenderer.invoke('sefaz:consultNFe', companyId),
     consultCTe: (companyId: number) => ipcRenderer.invoke('sefaz:consultCTe', companyId),
     getStatus: (companyId: number) => ipcRenderer.invoke('sefaz:getStatus', companyId),
-    cancelQuery: (companyId: number) => ipcRenderer.invoke('sefaz:cancelQuery', companyId),
+    cancelQuery: (companyId: number, docType?: 'NFE' | 'CTE') => ipcRenderer.invoke('sefaz:cancelQuery', companyId, docType),
+    resetNSU: (companyId: number, docType: 'NFE' | 'CTE') => ipcRenderer.invoke('sefaz:resetNSU', companyId, docType),
     onProgress: (callback: (data: { companyId: number; message: string; currentNSU?: string; count?: number }) => void) => {
       const subscription = (_event: IpcRendererEvent, data: any) => callback(data);
       ipcRenderer.on('sefaz:progress', subscription);

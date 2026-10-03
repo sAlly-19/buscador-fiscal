@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, Download, FolderOpen, ExternalLink } from 'lucide-react';
+import { X, FileText, Download, FolderOpen } from 'lucide-react';
 import { FiscalDocument } from '../../packages/domain/types';
 import { formatCNPJ } from '../../packages/domain/cnpj';
 import { formatAccessKey } from '../../packages/domain/access-key';

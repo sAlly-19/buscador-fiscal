@@ -18,14 +18,65 @@ export class DocumentRepository {
         total_value, xml_path, pdf_path, xml_status, pdf_status,
         situacao_fiscal
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(access_key) DO UPDATE SET
-        schema_type = CASE WHEN excluded.schema_type LIKE 'proc%' THEN excluded.schema_type ELSE documents.schema_type END,
-        xml_path = COALESCE(excluded.xml_path, documents.xml_path),
+      ON CONFLICT(company_id, access_key) DO UPDATE SET
+        nsu = CASE WHEN excluded.nsu > documents.nsu THEN excluded.nsu ELSE documents.nsu END,
+        schema_type = CASE
+          WHEN documents.schema_type LIKE 'procNFe%' OR documents.schema_type LIKE 'procCTe%' THEN documents.schema_type
+          WHEN excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%' THEN excluded.schema_type
+          ELSE COALESCE(documents.schema_type, excluded.schema_type)
+        END,
+        document_number = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.document_number IS NOT NULL THEN excluded.document_number
+          ELSE COALESCE(NULLIF(documents.document_number, ''), NULLIF(excluded.document_number, ''))
+        END,
+        series = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.series IS NOT NULL THEN excluded.series
+          ELSE COALESCE(NULLIF(documents.series, ''), NULLIF(excluded.series, ''))
+        END,
+        issue_date = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issue_date IS NOT NULL THEN excluded.issue_date
+          ELSE COALESCE(NULLIF(documents.issue_date, ''), NULLIF(excluded.issue_date, ''))
+        END,
+        issuer_cnpj = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issuer_cnpj IS NOT NULL THEN excluded.issuer_cnpj
+          ELSE COALESCE(NULLIF(documents.issuer_cnpj, ''), NULLIF(excluded.issuer_cnpj, ''))
+        END,
+        issuer_name = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issuer_name IS NOT NULL THEN excluded.issuer_name
+          ELSE COALESCE(NULLIF(documents.issuer_name, ''), NULLIF(excluded.issuer_name, ''))
+        END,
+        recipient_cnpj = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.recipient_cnpj IS NOT NULL THEN excluded.recipient_cnpj
+          ELSE COALESCE(NULLIF(documents.recipient_cnpj, ''), NULLIF(excluded.recipient_cnpj, ''))
+        END,
+        recipient_name = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.recipient_name IS NOT NULL THEN excluded.recipient_name
+          ELSE COALESCE(NULLIF(documents.recipient_name, ''), NULLIF(excluded.recipient_name, ''))
+        END,
+        total_value = CASE
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.total_value > 0 THEN excluded.total_value
+          WHEN excluded.total_value > 0 THEN excluded.total_value
+          ELSE documents.total_value
+        END,
+        xml_path = CASE
+          WHEN (documents.schema_type LIKE 'procNFe%' OR documents.schema_type LIKE 'procCTe%') AND documents.schema_type NOT LIKE '%Evento%' AND documents.xml_path IS NOT NULL THEN documents.xml_path
+          WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.xml_path IS NOT NULL THEN excluded.xml_path
+          ELSE COALESCE(documents.xml_path, excluded.xml_path)
+        END,
         pdf_path = COALESCE(excluded.pdf_path, documents.pdf_path),
-        xml_status = CASE WHEN excluded.xml_status = 'XML_DISPONIVEL' THEN excluded.xml_status ELSE documents.xml_status END,
-        pdf_status = CASE WHEN excluded.pdf_status = 'PDF_DISPONIVEL' THEN excluded.pdf_status ELSE documents.pdf_status END,
-        situacao_fiscal = COALESCE(excluded.situacao_fiscal, documents.situacao_fiscal),
-        total_value = CASE WHEN excluded.total_value > 0 THEN excluded.total_value ELSE documents.total_value END,
+        xml_status = CASE
+          WHEN documents.xml_status = 'XML_DISPONIVEL' OR excluded.xml_status = 'XML_DISPONIVEL' THEN 'XML_DISPONIVEL'
+          ELSE 'XML_INDISPONIVEL'
+        END,
+        pdf_status = CASE
+          WHEN documents.pdf_path IS NOT NULL OR excluded.pdf_path IS NOT NULL THEN 'PDF_DISPONIVEL'
+          ELSE 'PDF_INDISPONIVEL'
+        END,
+        situacao_fiscal = CASE
+          WHEN excluded.situacao_fiscal = 'CANCELADA' OR documents.situacao_fiscal = 'CANCELADA' THEN 'CANCELADA'
+          WHEN excluded.situacao_fiscal = 'DENEGADA' OR documents.situacao_fiscal = 'DENEGADA' THEN 'DENEGADA'
+          ELSE COALESCE(excluded.situacao_fiscal, documents.situacao_fiscal)
+        END,
         updated_at = datetime('now', 'localtime');`,
       [
         doc.company_id,
@@ -46,20 +97,28 @@ export class DocumentRepository {
         doc.pdf_path || null,
         doc.xml_status || 'XML_INDISPONIVEL',
         doc.pdf_status || 'PDF_INDISPONIVEL',
-        doc.situacao_fiscal || 'AUTORIZADA'
+        doc.situacao_fiscal || 'AUTORIZADA',
       ]
     );
 
-    return this.findByAccessKey(cleanKey)!;
+    return this.findByAccessKey(cleanKey, doc.company_id)!;
   }
 
   public findById(id: number): FiscalDocument | null {
     return this.db.queryOne<FiscalDocument>('SELECT * FROM documents WHERE id = ?;', [id]);
   }
 
-  public findByAccessKey(accessKey: string): FiscalDocument | null {
+  public findByAccessKey(accessKey: string, companyId?: number): FiscalDocument | null {
     const cleanKey = sanitizeAccessKey(accessKey);
-    return this.db.queryOne<FiscalDocument>('SELECT * FROM documents WHERE access_key = ?;', [cleanKey]);
+    return companyId === undefined
+      ? this.db.queryOne<FiscalDocument>(
+          'SELECT * FROM documents WHERE access_key = ? ORDER BY id LIMIT 1;',
+          [cleanKey]
+        )
+      : this.db.queryOne<FiscalDocument>(
+          'SELECT * FROM documents WHERE company_id = ? AND access_key = ?;',
+          [companyId, cleanKey]
+        );
   }
 
   public search(filters: DocumentSearchFilters): PaginatedResult<FiscalDocument> {
@@ -98,6 +157,39 @@ export class DocumentRepository {
       params.push(term, term);
     }
 
+    if (filters.search_query?.trim()) {
+      const raw = filters.search_query.trim();
+      const digits = sanitizeAccessKey(raw);
+      const likeRaw = `%${raw}%`;
+      const clauses = [
+        'document_number LIKE ?',
+        'series LIKE ?',
+        'issuer_cnpj LIKE ?',
+        'issuer_name LIKE ?',
+        'recipient_cnpj LIKE ?',
+        'recipient_name LIKE ?',
+      ];
+      params.push(likeRaw, likeRaw, likeRaw, likeRaw, likeRaw, likeRaw);
+      if (digits) {
+        clauses.push('access_key LIKE ?');
+        params.push(`%${digits}%`);
+      }
+      conditions.push(`(${clauses.join(' OR ')})`);
+    }
+
+    if (filters.series) {
+      conditions.push('series = ?');
+      params.push(filters.series.trim());
+    }
+    if (filters.xml_status) {
+      conditions.push('xml_status = ?');
+      params.push(filters.xml_status);
+    }
+    if (filters.pdf_status) {
+      conditions.push('pdf_status = ?');
+      params.push(filters.pdf_status);
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Contagem total
@@ -107,7 +199,7 @@ export class DocumentRepository {
 
     // Paginação
     const page = Math.max(1, filters.page || 1);
-    const pageSize = Math.max(1, filters.page_size || 50);
+    const pageSize = Math.min(200, Math.max(1, Number(filters.page_size) || 50));
     const offset = (page - 1) * pageSize;
 
     const dataSql = `
@@ -137,6 +229,15 @@ export class DocumentRepository {
            updated_at = datetime('now', 'localtime')
        WHERE id = ?;`,
       [xmlPath || null, pdfPath || null, xmlPath || null, pdfPath || null, id]
+    );
+  }
+
+  public isKnownStoragePath(filePath: string): boolean {
+    return Boolean(
+      this.db.queryOne('SELECT id FROM documents WHERE xml_path = ? OR pdf_path = ? LIMIT 1;', [
+        filePath,
+        filePath,
+      ])
     );
   }
 }

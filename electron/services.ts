@@ -13,12 +13,12 @@ import { WindowsStoreCertificateProvider } from '../packages/certificates/Window
 import { MockCertificateProvider } from '../packages/certificates/MockCertificateProvider';
 import { ICertificateProvider } from '../packages/certificates/ICertificateProvider';
 import { SefazDistributionProvider } from '../packages/fiscal/providers/SefazDistributionProvider';
-import { MockFiscalDistributionProvider } from '../packages/fiscal/providers/MockFiscalDistributionProvider';
 import { IFiscalDistributionProvider } from '../packages/fiscal/providers/IFiscalDistributionProvider';
 import { DistributionEngine } from '../packages/fiscal/services/DistributionEngine';
 import { ZipService } from '../packages/downloads/ZipService';
 
 export interface ApplicationContext {
+  db: Awaited<ReturnType<typeof getDatabase>>;
   companyService: CompanyService;
   certRepo: CertificateRepository;
   distStateRepo: DistributionStateRepository;
@@ -32,7 +32,7 @@ export interface ApplicationContext {
   zipService: ZipService;
 }
 
-export function initializeServices(userDataPath: string): ApplicationContext {
+export async function initializeServices(userDataPath: string): Promise<ApplicationContext> {
   const dbPath = path.join(userDataPath, 'fiscal_storage.db');
   const storageDir = path.join(userDataPath, 'documents');
 
@@ -40,7 +40,7 @@ export function initializeServices(userDataPath: string): ApplicationContext {
     fs.mkdirSync(userDataPath, { recursive: true });
   }
 
-  const db = getDatabase(dbPath);
+  const db = await getDatabase(dbPath);
   const companyRepo = new CompanyRepository(db);
   const certRepo = new CertificateRepository(db);
   const distStateRepo = new DistributionStateRepository(db);
@@ -52,9 +52,8 @@ export function initializeServices(userDataPath: string): ApplicationContext {
   const companyService = new CompanyService(companyRepo);
 
   // Seleciona provedor de certificados (Windows Store padrão, com fallback para Mock se não for Windows)
-  const scriptPath = path.resolve(__dirname, '../packages/certificates/windows-bridge.ps1');
   const certProvider: ICertificateProvider = process.platform === 'win32'
-    ? new WindowsStoreCertificateProvider(scriptPath)
+    ? new WindowsStoreCertificateProvider()
     : new MockCertificateProvider();
 
   // Provedor fiscal SEFAZ oficial
@@ -72,6 +71,7 @@ export function initializeServices(userDataPath: string): ApplicationContext {
   );
 
   return {
+    db,
     companyService,
     certRepo,
     distStateRepo,

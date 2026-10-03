@@ -19,7 +19,7 @@ export class SefazDistributionProvider implements IFiscalDistributionProvider {
     const endpoint = getNFeEndpoint(options.environment);
     const envelope = EnvelopeBuilder.buildNFeDistDFeEnvelope({
       tpAmb: options.environment === 'production' ? '1' : '2',
-      cUFAutor: options.cUFAutor || '91',
+      cUFAutor: options.cUFAutor,
       cnpj: options.cnpj,
       ultNSU: options.ultNSU,
     });
@@ -29,7 +29,8 @@ export class SefazDistributionProvider implements IFiscalDistributionProvider {
       soapAction: endpoint.action,
       soapEnvelope: envelope,
       thumbprint: options.thumbprint,
-      timeoutSec: 45,
+      timeoutSec: 60,
+      signal: options.signal,
     });
 
     if (result.statusCode !== 200 || !result.responseBody) {
@@ -43,6 +44,7 @@ export class SefazDistributionProvider implements IFiscalDistributionProvider {
     const endpoint = getCTeEndpoint(options.environment);
     const envelope = EnvelopeBuilder.buildCTeDistDFeEnvelope({
       tpAmb: options.environment === 'production' ? '1' : '2',
+      cUFAutor: options.cUFAutor,
       cnpj: options.cnpj,
       ultNSU: options.ultNSU,
     });
@@ -52,7 +54,8 @@ export class SefazDistributionProvider implements IFiscalDistributionProvider {
       soapAction: endpoint.action,
       soapEnvelope: envelope,
       thumbprint: options.thumbprint,
-      timeoutSec: 45,
+      timeoutSec: 60,
+      signal: options.signal,
     });
 
     if (result.statusCode !== 200 || !result.responseBody) {

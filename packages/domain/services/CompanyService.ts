@@ -35,6 +35,7 @@ export class CompanyService {
     return this.repo.create({
       name: dto.name.trim(),
       cnpj: cleanCNPJ,
+      uf: dto.uf,
       folder_path: dto.folder_path,
     });
   }

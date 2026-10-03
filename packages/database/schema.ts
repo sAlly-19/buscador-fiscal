@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     cnpj TEXT NOT NULL UNIQUE,
+    uf TEXT DEFAULT '35',
     folder_path TEXT,
     is_active INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -24,6 +25,9 @@ CREATE TABLE IF NOT EXISTS certificates (
     valid_from TEXT NOT NULL,
     valid_to TEXT NOT NULL,
     provider TEXT NOT NULL DEFAULT 'windows_store',
+    has_private_key INTEGER NOT NULL DEFAULT 1,
+    extracted_cnpj TEXT,
+    extracted_cpf TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
@@ -34,14 +38,17 @@ CREATE TABLE IF NOT EXISTS distribution_state (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id INTEGER NOT NULL,
     document_type TEXT NOT NULL CHECK(document_type IN ('NFE', 'CTE')),
+    environment TEXT NOT NULL DEFAULT 'homologation' CHECK(environment IN ('homologation', 'production')),
     last_nsu TEXT NOT NULL DEFAULT '000000000000000',
     max_nsu TEXT NOT NULL DEFAULT '000000000000000',
     last_query_at TEXT,
     status TEXT NOT NULL DEFAULT 'IDLE' CHECK(status IN ('IDLE', 'RUNNING', 'RATE_LIMITED', 'ERROR')),
     last_error TEXT,
+    last_cstat INTEGER,
+    next_query_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-    UNIQUE(company_id, document_type),
+    UNIQUE(company_id, document_type, environment),
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
@@ -52,7 +59,7 @@ CREATE TABLE IF NOT EXISTS documents (
     document_type TEXT NOT NULL CHECK(document_type IN ('NFE', 'CTE')),
     nsu TEXT NOT NULL,
     schema_type TEXT NOT NULL,
-    access_key TEXT NOT NULL UNIQUE,
+    access_key TEXT NOT NULL,
     document_number TEXT,
     series TEXT,
     issue_date TEXT,
@@ -75,6 +82,7 @@ CREATE TABLE IF NOT EXISTS documents (
 -- Índices essenciais para consultas locais rápidas
 CREATE INDEX IF NOT EXISTS idx_docs_company_id ON documents(company_id);
 CREATE INDEX IF NOT EXISTS idx_docs_access_key ON documents(access_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_docs_company_access_key ON documents(company_id, access_key);
 CREATE INDEX IF NOT EXISTS idx_docs_nsu ON documents(nsu);
 CREATE INDEX IF NOT EXISTS idx_docs_issue_date ON documents(issue_date);
 CREATE INDEX IF NOT EXISTS idx_docs_issuer_cnpj ON documents(issuer_cnpj);
@@ -93,6 +101,7 @@ CREATE TABLE IF NOT EXISTS query_history (
     documents_received INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL,
     error_message TEXT,
+    environment TEXT NOT NULL DEFAULT 'homologation',
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 

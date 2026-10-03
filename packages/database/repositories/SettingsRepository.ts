@@ -11,15 +11,38 @@ export class SettingsRepository {
       map.set(r.key, r.value);
     }
 
+    const environment = map.get('sefaz_environment');
+    const logLevel = map.get('log_level');
+    const parsedPageSize = Number(map.get('items_per_page') || 50);
     return {
       default_storage_path: map.get('default_storage_path') || '',
-      sefaz_environment: (map.get('sefaz_environment') as any) || 'homologation',
-      items_per_page: Number(map.get('items_per_page') || 50),
-      log_level: (map.get('log_level') as any) || 'info',
+      sefaz_environment: environment === 'production' ? 'production' : 'homologation',
+      items_per_page: Number.isInteger(parsedPageSize) && parsedPageSize >= 10 && parsedPageSize <= 200
+        ? parsedPageSize
+        : 50,
+      log_level: logLevel === 'warn' || logLevel === 'error' || logLevel === 'debug' ? logLevel : 'info',
     };
   }
 
   public updateSettings(partial: Partial<AppSettings>): AppSettings {
+    const allowedKeys = new Set<keyof AppSettings>([
+      'default_storage_path', 'sefaz_environment', 'items_per_page', 'log_level'
+    ]);
+    for (const key of Object.keys(partial)) {
+      if (!allowedKeys.has(key as keyof AppSettings)) throw new Error(`Configuração não permitida: ${key}`);
+    }
+    if (partial.sefaz_environment && !['homologation', 'production'].includes(partial.sefaz_environment)) {
+      throw new Error('Ambiente SEFAZ inválido.');
+    }
+    if (partial.log_level && !['info', 'warn', 'error', 'debug'].includes(partial.log_level)) {
+      throw new Error('Nível de log inválido.');
+    }
+    if (partial.items_per_page !== undefined && (!Number.isInteger(partial.items_per_page) || partial.items_per_page < 10 || partial.items_per_page > 200)) {
+      throw new Error('Itens por página deve ser um inteiro entre 10 e 200.');
+    }
+    if (partial.default_storage_path !== undefined && typeof partial.default_storage_path !== 'string') {
+      throw new Error('Caminho de armazenamento inválido.');
+    }
     this.db.transaction(() => {
       for (const [key, val] of Object.entries(partial)) {
         if (val !== undefined) {

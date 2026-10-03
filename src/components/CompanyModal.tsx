@@ -2,11 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { X, Building2, AlertCircle } from 'lucide-react';
 import { Company } from '../../packages/domain/types';
 import { formatCNPJ, isValidCNPJ, sanitizeCNPJ } from '../../packages/domain/cnpj';
+import { BRAZILIAN_UFS, getUfAcronym } from '../../packages/domain/uf';
 
 interface CompanyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; cnpj: string; folder_path?: string }) => Promise<void>;
+  onSave: (data: {
+    name: string;
+    cnpj: string;
+    uf?: string;
+    folder_path?: string;
+  }) => Promise<void>;
   editingCompany?: Company | null;
 }
 
@@ -18,6 +24,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [cnpj, setCnpj] = useState('');
+  const [uf, setUf] = useState('GO');
   const [folderPath, setFolderPath] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,10 +33,12 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
     if (editingCompany) {
       setName(editingCompany.name);
       setCnpj(formatCNPJ(editingCompany.cnpj));
+      setUf(editingCompany.uf ? getUfAcronym(editingCompany.uf) : 'GO');
       setFolderPath(editingCompany.folder_path || '');
     } else {
       setName('');
       setCnpj('');
+      setUf('GO');
       setFolderPath('');
     }
     setError(null);
@@ -47,7 +56,9 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
 
   const handleChooseFolder = async () => {
     try {
-      const selected = await window.fiscalApi?.settings.selectFolder('Selecione a Pasta da Empresa');
+      const selected = await window.fiscalApi?.settings.selectFolder(
+        'Selecione a Pasta da Empresa'
+      );
       if (selected) {
         setFolderPath(selected);
       }
@@ -76,6 +87,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
       await onSave({
         name: name.trim(),
         cnpj: clean,
+        uf,
         folder_path: folderPath.trim() || undefined,
       });
       onClose();
@@ -94,7 +106,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
             <Building2 className="w-4 h-4 text-sky-600" />
             <span>{editingCompany ? 'Editar Empresa' : 'Cadastrar Nova Empresa'}</span>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition p-1 rounded hover:bg-slate-200/60"
           >
@@ -114,7 +126,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
             <label className="block font-semibold text-slate-700 mb-1">
               Razão Social / Nome da Empresa: <span className="text-rose-500">*</span>
             </label>
-            <input 
+            <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -124,17 +136,35 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              CNPJ (apenas dígitos ou com pontuação): <span className="text-rose-500">*</span>
-            </label>
-            <input 
-              type="text"
-              value={cnpj}
-              onChange={handleCnpjChange}
-              placeholder="00.000.000/0000-00"
-              className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
-            />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block font-semibold text-slate-700 mb-1">
+                CNPJ: <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={cnpj}
+                onChange={handleCnpjChange}
+                placeholder="00.000.000/0000-00"
+                className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                UF (Estado): <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={uf}
+                onChange={(e) => setUf(e.target.value)}
+                className="w-full border border-slate-300 rounded px-2 py-2 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+              >
+                {BRAZILIAN_UFS.map((u) => (
+                  <option key={u.code} value={u.acronym}>
+                    {u.acronym}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -142,7 +172,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
               Pasta Específica para Documentos (Opcional):
             </label>
             <div className="flex gap-2">
-              <input 
+              <input
                 type="text"
                 value={folderPath}
                 onChange={(e) => setFolderPath(e.target.value)}

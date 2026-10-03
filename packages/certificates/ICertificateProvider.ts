@@ -6,6 +6,7 @@ export interface SoapExecutionOptions {
   soapEnvelope: string;
   thumbprint: string;
   timeoutSec?: number;
+  signal?: AbortSignal;
 }
 
 export interface SoapExecutionResult {

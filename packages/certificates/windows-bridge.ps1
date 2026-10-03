@@ -20,10 +20,17 @@ param(
 )
 
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+[System.Net.ServicePointManager]::Expect100Continue = $false
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 if ($Action -eq "list") {
-    $certs = Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object { $_.HasPrivateKey }
+    $certs = @(Get-ChildItem -Path "Cert:\CurrentUser\My" -ErrorAction SilentlyContinue)
+    try {
+        $certs += @(Get-ChildItem -Path "Cert:\LocalMachine\My" -ErrorAction Stop)
+    } catch {
+        # A store da máquina pode exigir privilégios; a store do usuário continua disponível.
+    }
+    $certs = $certs | Where-Object { $_.HasPrivateKey } | Sort-Object Thumbprint -Unique
     $list = @()
 
     foreach ($cert in $certs) {
@@ -65,6 +72,16 @@ if ($Action -eq "request") {
         exit 1
     }
 
+    if ($Thumbprint -notmatch '^[a-fA-F0-9]{40,64}$') {
+        Write-Error "Thumbprint de certificado inválido."
+        exit 4
+    }
+
+    if ($Url -notmatch '^https://') {
+        Write-Error "A URL da SEFAZ deve usar HTTPS."
+        exit 5
+    }
+
     $cert = Get-Item -Path "Cert:\CurrentUser\My\$Thumbprint" -ErrorAction SilentlyContinue
     if (-not $cert) {
         # Tenta também na store LocalMachine se não estiver em CurrentUser
@@ -89,7 +106,9 @@ if ($Action -eq "request") {
     $request.ContentType = "application/soap+xml; charset=utf-8; action=`"$SoapAction`""
     $request.ContentLength = $envelopeBytes.Length
     $request.Timeout = $TimeoutSec * 1000
-    $request.ClientCertificates.Add($cert)
+    $request.ReadWriteTimeout = $TimeoutSec * 1000
+    $request.AutomaticDecompression = [System.Net.DecompressionMethods]::GZip -bor [System.Net.DecompressionMethods]::Deflate
+    [void]$request.ClientCertificates.Add($cert)
     $request.KeepAlive = $false
 
     try {
@@ -115,6 +134,11 @@ if ($Action -eq "request") {
         $webEx = $_.Exception
         $statusCode = 500
         $errorBody = ""
+        $errorMessage = $webEx.Message
+
+        if ($webEx.Status -eq [System.Net.WebExceptionStatus]::Timeout) {
+            $errorMessage = "Tempo limite atingido (${TimeoutSec}s). A SEFAZ pode estar com instabilidade ou lentidão temporária."
+        }
 
         if ($webEx.Response) {
             $statusCode = [int]$webEx.Response.StatusCode
@@ -125,12 +149,12 @@ if ($Action -eq "request") {
                 $reader.Close()
             }
         } else {
-            $errorBody = $webEx.Message
+            $errorBody = $errorMessage
         }
 
         $resObj = [PSCustomObject]@{
             StatusCode = $statusCode
-            Error = $webEx.Message
+            Error = $errorMessage
             ResponseBody = $errorBody
         }
 

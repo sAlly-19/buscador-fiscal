@@ -28,6 +28,7 @@ export class ZipService {
     files: ZipFileInput[],
     zipBaseName?: string
   ): Promise<ZipCreationResult> {
+    if (!path.isAbsolute(destinationFolder)) throw new Error('A pasta de destino deve ser um caminho absoluto.');
     if (!fs.existsSync(destinationFolder)) {
       fs.mkdirSync(destinationFolder, { recursive: true });
     }
@@ -36,7 +37,15 @@ export class ZipService {
     const datePrefix = new Date().toISOString().substring(0, 7); // YYYY-MM
     const defaultName = `${safeCompanyName}_Documentos_${datePrefix}.zip`;
     const finalZipName = zipBaseName ? `${sanitizeFilename(zipBaseName)}.zip` : defaultName;
-    const outputZipPath = path.join(destinationFolder, finalZipName);
+    let outputZipPath = path.join(destinationFolder, finalZipName);
+    const parsedName = path.parse(outputZipPath);
+    let suffix = 1;
+    while (fs.existsSync(outputZipPath)) {
+      outputZipPath = path.join(parsedName.dir, `${parsedName.name} (${suffix++})${parsedName.ext}`);
+    }
+
+    const availableFiles = files.filter((item) => fs.existsSync(item.sourcePath));
+    if (availableFiles.length === 0) throw new Error('Nenhum arquivo disponível para incluir no ZIP.');
 
     return new Promise((resolve, reject) => {
       const output = fs.createWriteStream(outputZipPath);
@@ -54,24 +63,33 @@ export class ZipService {
         });
       });
 
+      output.on('error', (err) => {
+        archive.abort();
+        if (fs.existsSync(outputZipPath)) fs.unlinkSync(outputZipPath);
+        reject(new Error(`Falha ao gravar arquivo ZIP: ${err.message}`));
+      });
+
       archive.on('error', (err) => {
+        if (fs.existsSync(outputZipPath)) fs.unlinkSync(outputZipPath);
         reject(new Error(`Falha ao gerar arquivo ZIP: ${err.message}`));
+      });
+
+      archive.on('warning', (err) => {
+        archive.abort();
+        reject(new Error(`Arquivo inválido durante a compactação: ${err.message}`));
       });
 
       archive.pipe(output);
 
-      for (const item of files) {
-        if (fs.existsSync(item.sourcePath)) {
-          const extension = item.format === 'XML' ? '.xml' : '.pdf';
-          const subfolder = item.format === 'XML' ? 'XML' : 'PDF';
-          const internalName = `${subfolder}/${item.accessKey}${extension}`;
-
-          archive.file(item.sourcePath, { name: internalName });
-          addedCount++;
-        }
+      for (const item of availableFiles) {
+        const extension = item.format === 'XML' ? '.xml' : '.pdf';
+        const subfolder = item.format === 'XML' ? 'XML' : 'PDF';
+        const internalName = `${subfolder}/${sanitizeFilename(item.accessKey)}${extension}`;
+        archive.file(item.sourcePath, { name: internalName });
+        addedCount++;
       }
 
-      archive.finalize();
+      archive.finalize().catch((err) => reject(new Error(`Falha ao finalizar arquivo ZIP: ${err.message}`)));
     });
   }
 }

@@ -7,6 +7,7 @@ export interface DistributeOptions {
   environment: SefazEnvironment;
   thumbprint: string;
   cUFAutor?: string;
+  signal?: AbortSignal;
 }
 
 export interface IFiscalDistributionProvider {

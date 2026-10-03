@@ -38,7 +38,7 @@ export class MockCertificateProvider implements ICertificateProvider {
     return this.mockCerts.find(c => c.thumbprint.toUpperCase() === cleanThumb) || null;
   }
 
-  public async executeSoapRequest(options: SoapExecutionOptions): Promise<SoapExecutionResult> {
+  public async executeSoapRequest(_options: SoapExecutionOptions): Promise<SoapExecutionResult> {
     // Retorna resposta mockada com sucesso
     return {
       statusCode: 200,

@@ -7,11 +7,11 @@ Aplicativo desktop profissional para Windows projetado para busca, sincronizaç�
 ## 🚀 Funcionalidades Principais
 
 * **Multi-Empresa:** Cadastro e alternância rápida entre empresas com validação rigorosa de CNPJ (dígitos verificadores oficiais e prevenção de duplicidade).
-* **Certificados Digitais ICP-Brasil:** Suporte nativo a certificados instalados na máquina do usuário (`Cert:\CurrentUser\My`), tanto A1 quanto A3 (tokens e smartcards protegidos), sem requerer seleção repetida de arquivo PFX ou digitação frequente de senha.
-* **Controle Rigoroso de NSU:** Sincronização de documentos fiscais respeitando estritamente o estado do NSU (15 dígitos) de forma transacional e independente para NF-e e CT-e. Prevenção de bloqueio por consumo indevido (`cStat 656`).
+* **Certificados Digitais ICP-Brasil:** Suporte nativo às stores `CurrentUser` e `LocalMachine` do Windows, incluindo certificados A1 e A3 com chave privada acessível.
+* **Controle Rigoroso de NSU:** Estado transacional e independente por empresa, documento e ambiente (homologação/produção), com intervalo local obrigatório para `cStat 137/656`.
 * **Busca Local Rápida:** Filtro visual por período de datas, chave de acesso, número, série e emitente operando 100% sobre o banco SQLite local, sem consumir franquia da SEFAZ.
-* **Armazenamento e Deduplicação:** Arquivamento físico sanitizado no disco (`<Pasta>/<Empresa>/<Tipo>/<Ano>/<Mes>/<Chave>.<ext>`) e metadados no SQLite, com garantia de idempotência por chave de acesso (44 dígitos).
-* **Download Individual e em Massa:** Exportação de XMLs e PDFs (DANFE/DACTE gerados localmente via Chromium) individualmente ou empacotados em arquivo ZIP estruturado.
+* **Armazenamento e Deduplicação:** Escrita atômica e caminhos sanitizados (`<Pasta>/<Empresa>/<Tipo>/<Ano>/<Mes>/<Chave>.<ext>`), com idempotência da chave dentro de cada empresa.
+* **Download Individual e em Massa:** Exportação dos XMLs arquivados e de PDFs que já possuam arquivo físico associado, individualmente ou em ZIP sem sobrescrever arquivos existentes.
 * **Interface Limpa e Focada:** Interface visual intuitiva sem dashboards ou gráficos desnecessários, com navegação em árvore por empresa e controle de seleção.
 
 ---
@@ -20,7 +20,7 @@ Aplicativo desktop profissional para Windows projetado para busca, sincronizaç�
 
 * **Desktop:** Electron (com `contextIsolation: true`, `nodeIntegration: false`, preload com API segura via `contextBridge`).
 * **Front-end:** React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons.
-* **Banco de Dados:** SQLite local (WAL mode, foreign keys ativadas).
+* **Banco de Dados:** SQLite local via `sql.js`, persistido por substituição atômica e com foreign keys reativadas após cada exportação.
 * **Testes Automatizados:** Vitest com suítes de testes unitários e de integração.
 
 ---
@@ -48,4 +48,7 @@ npm run build
 
 # Executar a versão de produção
 npx electron .
+
+# Gerar instalador NSIS para Windows
+npm run dist:win
 ```

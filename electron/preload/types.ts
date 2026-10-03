@@ -38,7 +38,8 @@ export interface FiscalDesktopAPI {
     consultNFe: (companyId: number) => Promise<SefazQueryResult>;
     consultCTe: (companyId: number) => Promise<SefazQueryResult>;
     getStatus: (companyId: number) => Promise<{ nfeLastNSU: string; cteLastNSU: string; isRunning: boolean }>;
-    cancelQuery: (companyId: number) => Promise<boolean>;
+    cancelQuery: (companyId: number, docType?: 'NFE' | 'CTE') => Promise<boolean>;
+    resetNSU: (companyId: number, docType: 'NFE' | 'CTE') => Promise<boolean>;
     onProgress: (callback: (data: { companyId: number; message: string; currentNSU?: string; count?: number }) => void) => () => void;
   };
   settings: {

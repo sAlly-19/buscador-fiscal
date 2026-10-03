@@ -1,35 +1,35 @@
 import { DatabaseManager } from '../connection';
 import { Company, CreateCompanyDTO, UpdateCompanyDTO } from '../../domain/types';
 import { sanitizeCNPJ } from '../../domain/cnpj';
+import { getUfCode, getUfAcronym } from '../../domain/uf';
 
 export class CompanyRepository {
   constructor(private db: DatabaseManager) {}
 
+  private mapRow(r: any): Company {
+    return {
+      ...r,
+      uf: r.uf ? getUfAcronym(r.uf) : 'SP',
+      is_active: Boolean(r.is_active),
+    };
+  }
+
   public listAll(): Company[] {
     const rows = this.db.queryAll<any>('SELECT * FROM companies ORDER BY name ASC;');
-    return rows.map(r => ({
-      ...r,
-      is_active: Boolean(r.is_active),
-    }));
+    return rows.map(r => this.mapRow(r));
   }
 
   public findById(id: number): Company | null {
     const row = this.db.queryOne<any>('SELECT * FROM companies WHERE id = ?;', [id]);
     if (!row) return null;
-    return {
-      ...row,
-      is_active: Boolean(row.is_active),
-    };
+    return this.mapRow(row);
   }
 
   public findByCNPJ(cnpj: string): Company | null {
     const cleanCNPJ = sanitizeCNPJ(cnpj);
     const row = this.db.queryOne<any>('SELECT * FROM companies WHERE cnpj = ?;', [cleanCNPJ]);
     if (!row) return null;
-    return {
-      ...row,
-      is_active: Boolean(row.is_active),
-    };
+    return this.mapRow(row);
   }
 
   public create(dto: CreateCompanyDTO): Company {
@@ -44,11 +44,12 @@ export class CompanyRepository {
     // Se for a primeira empresa, torna ativa por padrão
     const total = this.db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM companies;');
     const isFirst = (total?.count || 0) === 0;
+    const ufCode = getUfCode(dto.uf);
 
     const result = this.db.execute(
-      `INSERT INTO companies (name, cnpj, folder_path, is_active)
-       VALUES (?, ?, ?, ?);`,
-      [dto.name.trim(), cleanCNPJ, dto.folder_path || null, isFirst ? 1 : 0]
+      `INSERT INTO companies (name, cnpj, uf, folder_path, is_active)
+       VALUES (?, ?, ?, ?, ?);`,
+      [dto.name.trim(), cleanCNPJ, ufCode, dto.folder_path || null, isFirst ? 1 : 0]
     );
 
     const created = this.findById(result.lastInsertRowid);
@@ -73,13 +74,16 @@ export class CompanyRepository {
       }
     }
 
+    const ufCode = dto.uf !== undefined ? getUfCode(dto.uf) : (existing.uf ? getUfCode(existing.uf) : '35');
+
     this.db.execute(
       `UPDATE companies 
-       SET name = ?, cnpj = ?, folder_path = ?, updated_at = datetime('now', 'localtime')
+       SET name = ?, cnpj = ?, uf = ?, folder_path = ?, updated_at = datetime('now', 'localtime')
        WHERE id = ?;`,
       [
         dto.name ? dto.name.trim() : existing.name,
         cleanCNPJ,
+        ufCode,
         dto.folder_path !== undefined ? dto.folder_path : existing.folder_path,
         dto.id
       ]
@@ -100,12 +104,13 @@ export class CompanyRepository {
       const first = this.db.queryOne<any>('SELECT * FROM companies ORDER BY id ASC LIMIT 1;');
       if (!first) return null;
       this.setActive(first.id);
-      return { ...first, is_active: true };
+      return this.mapRow({ ...first, is_active: 1 });
     }
-    return { ...row, is_active: true };
+    return this.mapRow(row);
   }
 
   public setActive(id: number): boolean {
+    if (!this.findById(id)) return false;
     return this.db.transaction(() => {
       this.db.execute('UPDATE companies SET is_active = 0;');
       const result = this.db.execute('UPDATE companies SET is_active = 1 WHERE id = ?;', [id]);

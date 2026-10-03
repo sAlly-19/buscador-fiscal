@@ -17,6 +17,7 @@ export interface Company {
   id: number;
   name: string;
   cnpj: string; // apenas dígitos (14 chars)
+  uf?: string; // Sigla (ex: 'SP', 'GO') ou código IBGE
   folder_path?: string;
   is_active: boolean;
   created_at: string;
@@ -26,6 +27,7 @@ export interface Company {
 export interface CreateCompanyDTO {
   name: string;
   cnpj: string;
+  uf?: string;
   folder_path?: string;
 }
 
@@ -33,6 +35,7 @@ export interface UpdateCompanyDTO {
   id: number;
   name?: string;
   cnpj?: string;
+  uf?: string;
   folder_path?: string;
 }
 
@@ -56,11 +59,14 @@ export interface DistributionState {
   id: number;
   company_id: number;
   document_type: DocumentType;
+  environment: SefazEnvironment;
   last_nsu: string; // 15 dígitos
   max_nsu: string;  // 15 dígitos
   last_query_at?: string;
   status: 'IDLE' | 'RUNNING' | 'RATE_LIMITED' | 'ERROR';
   last_error?: string;
+  last_cstat?: number;
+  next_query_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -99,6 +105,7 @@ export interface DocumentSearchFilters {
   document_number?: string;
   series?: string;
   issuer_cnpj_or_name?: string;
+  search_query?: string;
   xml_status?: string;
   pdf_status?: string;
   page?: number;

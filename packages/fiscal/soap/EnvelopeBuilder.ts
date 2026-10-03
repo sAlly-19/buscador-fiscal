@@ -1,5 +1,6 @@
 import { formatNSU } from '../../domain/nsu';
 import { sanitizeCNPJ } from '../../domain/cnpj';
+import { getUfCode } from '../../domain/uf';
 
 export interface NFeDistEnvelopeOptions {
   tpAmb: '1' | '2';
@@ -10,6 +11,7 @@ export interface NFeDistEnvelopeOptions {
 
 export interface CTeDistEnvelopeOptions {
   tpAmb: '1' | '2';
+  cUFAutor?: string;
   cnpj: string;
   ultNSU: string;
 }
@@ -21,7 +23,7 @@ export class EnvelopeBuilder {
   public static buildNFeDistDFeEnvelope(options: NFeDistEnvelopeOptions): string {
     const cleanCNPJ = sanitizeCNPJ(options.cnpj);
     const nsu = formatNSU(options.ultNSU);
-    const cUF = options.cUFAutor || '91';
+    const cUF = getUfCode(options.cUFAutor);
 
     return `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
@@ -48,6 +50,7 @@ export class EnvelopeBuilder {
   public static buildCTeDistDFeEnvelope(options: CTeDistEnvelopeOptions): string {
     const cleanCNPJ = sanitizeCNPJ(options.cnpj);
     const nsu = formatNSU(options.ultNSU);
+    const cUF = getUfCode(options.cUFAutor);
 
     return `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
@@ -56,7 +59,7 @@ export class EnvelopeBuilder {
       <cteDadosMsg>
         <distDFeInt versao="1.00" xmlns="http://www.portalfiscal.inf.br/cte">
           <tpAmb>${options.tpAmb}</tpAmb>
-          <cUFAutor>91</cUFAutor>
+          <cUFAutor>${cUF}</cUFAutor>
           <CNPJ>${cleanCNPJ}</CNPJ>
           <distNSU>
             <ultNSU>${nsu}</ultNSU>

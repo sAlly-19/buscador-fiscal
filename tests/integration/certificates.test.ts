@@ -46,6 +46,13 @@ describe('Provedores de Certificados Digitais (Fase 5)', () => {
         expect((cert as any).privateKey).toBeUndefined();
         expect((cert as any).password).toBeUndefined();
       }
+    }, 15000);
+
+    it('deve extrair JSON corretamente mesmo com ruído ou saída prévia do PowerShell', () => {
+      const noisyOutput = '0\r\n{"StatusCode":200,"ResponseBody":"<xml>ok</xml>"}';
+      const parsed = (winProvider as any).parseJsonOutput(noisyOutput);
+      expect(parsed.StatusCode).toBe(200);
+      expect(parsed.ResponseBody).toBe('<xml>ok</xml>');
     });
   });
 });

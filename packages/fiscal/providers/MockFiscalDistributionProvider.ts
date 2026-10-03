@@ -1,6 +1,5 @@
 import { IFiscalDistributionProvider, DistributeOptions } from './IFiscalDistributionProvider';
 import { SefazRawResponse, DocZipItem } from '../types';
-import { compressToDocZip } from '../utils/compression';
 import { formatNSU, compareNSU } from '../../domain/nsu';
 
 export class MockFiscalDistributionProvider implements IFiscalDistributionProvider {

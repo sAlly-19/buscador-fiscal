@@ -5,15 +5,17 @@
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev:vite": "vite",
-    "dev:electron": "wait-on tcp:5173 && electron .",
-    "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:electron": "npm run build:electron && wait-on tcp:5173 && electron .",
+    "dev:electron:watch": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
+    "dev": "npm run build:electron && concurrently -k \"npm run dev:vite\" \"npm run dev:electron:watch\" \"wait-on tcp:5173 && electron .\"",
     "build:renderer": "vite build",
-    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:electron": "tsc -p tsconfig.electron.json && node -e \"const fs=require('fs'),path=require('path'),s='packages/certificates/windows-bridge.ps1',d='dist-electron/packages/certificates/windows-bridge.ps1';if(fs.existsSync(s)){fs.mkdirSync(path.dirname(d),{recursive:true});fs.copyFileSync(s,d);}\"",
     "build": "npm run build:renderer && npm run build:electron",
+    "dist:win": "npm run build && electron-builder --win nsis",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"electron/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\""
   },
   "keywords": [
@@ -31,7 +33,7 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "clsx": "^2.1.1",
-    "fast-xml-parser": "^4.5.3",
+    "fast-xml-parser": "^5.11.2",
     "lucide-react": "^1.16.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -46,17 +48,35 @@
     "@types/sql.js": "^1.4.9",
     "@typescript-eslint/eslint-plugin": "^8.26.0",
     "@typescript-eslint/parser": "^8.26.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
-    "electron": "^34.3.0",
+    "electron": "^44.5.1",
+    "electron-builder": "26.17.0",
     "eslint": "^9.21.0",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.7.3",
-    "vite": "^6.2.0",
-    "vitest": "^3.0.7",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
     "wait-on": "^8.0.2"
+  },
+  "overrides": {
+    "@electron/get": "5.1.0",
+    "tar": "7.5.22"
+  },
+  "build": {
+    "appId": "br.com.buscadorfiscal.desktop",
+    "productName": "Buscador NF-e CT-e",
+    "asar": true,
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
+    "extraResources": [
+      { "from": "packages/certificates/windows-bridge.ps1", "to": "packages/certificates/windows-bridge.ps1" }
+    ],
+    "win": { "target": ["nsis"] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Download, Folder, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Download, Folder, AlertCircle } from 'lucide-react';
 import { DownloadBatchResult } from '../../packages/domain/types';
 
 interface DownloadModalProps {
@@ -118,7 +118,7 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
                   onChange={(e) => setIncludePdf(e.target.checked)}
                   className="rounded text-sky-600 focus:ring-sky-500" 
                 />
-                <span className="font-medium text-slate-800">Documentos Auxiliares PDF (DANFE/DACTE na pasta PDF/)</span>
+                <span className="font-medium text-slate-800">PDFs já disponíveis localmente (pasta PDF/ no ZIP)</span>
               </label>
             </div>
           </div>

@@ -19,7 +19,6 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
   const [certs, setCerts] = useState<CertificateInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedThumbprint, setSelectedThumbprint] = useState<string>('');
-  const [currentCompanyCert, setCurrentCompanyCert] = useState<CertificateInfo | null>(null);
   const [isAssociating, setIsAssociating] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -39,7 +38,6 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
         window.fiscalApi?.certificates.getForCompany(company.id) || null,
       ]);
       setCerts(available);
-      setCurrentCompanyCert(associated);
       if (associated) {
         setSelectedThumbprint(associated.thumbprint);
       } else {

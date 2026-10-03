@@ -12,9 +12,9 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
   let docRepo: DocumentRepository;
   let settingsRepo: SettingsRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Inicia banco isolado em memória para os testes
-    db = new DatabaseManager(':memory:');
+    db = await DatabaseManager.create(':memory:');
     companyRepo = new CompanyRepository(db);
     distStateRepo = new DistributionStateRepository(db);
     docRepo = new DocumentRepository(db);
@@ -64,6 +64,12 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
       expect(companyRepo.findById(c1.id)?.is_active).toBe(false);
       expect(companyRepo.findById(c2.id)?.is_active).toBe(true);
     });
+
+    it('não deve desativar a empresa atual ao selecionar um ID inexistente', () => {
+      const company = companyRepo.create({ name: 'Empresa 1', cnpj: '41.777.943/0001-02' });
+      expect(companyRepo.setActive(999999)).toBe(false);
+      expect(companyRepo.getActive()?.id).toBe(company.id);
+    });
   });
 
   describe('Estado de Distribuição e NSU (DistributionStateRepository)', () => {
@@ -94,9 +100,28 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
       expect(cteState.last_nsu).toBe('000000000000012');
       expect(cteState.max_nsu).toBe('000000000000012');
     });
+
+    it('deve manter NSUs independentes entre homologação e produção', () => {
+      const company = companyRepo.create({ name: 'Empresa Teste', cnpj: '41.777.943/0001-02' });
+      distStateRepo.updateNSU(company.id, 'NFE', '10', '20', 'IDLE', undefined, 'homologation');
+      distStateRepo.updateNSU(company.id, 'NFE', '30', '40', 'IDLE', undefined, 'production');
+      expect(distStateRepo.getOrCreate(company.id, 'NFE', 'homologation').last_nsu).toBe('000000000000010');
+      expect(distStateRepo.getOrCreate(company.id, 'NFE', 'production').last_nsu).toBe('000000000000030');
+    });
   });
 
   describe('Documentos Fiscais e Deduplicação (DocumentRepository)', () => {
+    it('deve permitir a mesma chave de acesso para empresas diferentes', () => {
+      const first = companyRepo.create({ name: 'Empresa 1', cnpj: '41.777.943/0001-02' });
+      const second = companyRepo.create({ name: 'Empresa 2', cnpj: '37.305.384/0001-60' });
+      const accessKey = '35260941777943000102550010000123451000123456';
+      for (const company of [first, second]) {
+        docRepo.upsert({ company_id: company.id, document_type: 'NFE', nsu: '1', schema_type: 'resNFe',
+          access_key: accessKey, received_at: new Date().toISOString(), xml_status: 'XML_DISPONIVEL', pdf_status: 'PDF_INDISPONIVEL' });
+      }
+      expect(docRepo.search({ company_id: first.id }).total).toBe(1);
+      expect(docRepo.search({ company_id: second.id }).total).toBe(1);
+    });
     it('deve gravar documento fiscal e não duplicar registro em caso de mesma chave de acesso', () => {
       const company = companyRepo.create({ name: 'Empresa Teste', cnpj: '41.777.943/0001-02' });
       const accessKey = '35260941777943000102550010000123451000123456';
@@ -145,6 +170,91 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
       expect(results.items[0].schema_type).toBe('procNFe_v4.00.xsd');
       expect(results.items[0].pdf_status).toBe('PDF_DISPONIVEL');
       expect(results.items[0].xml_path).toBe('C:/Docs/nota.xml');
+    });
+
+    it('deve enriquecer resumo com dados do procNFe e persistir cancelamento sem reverter para autorizada', () => {
+      const company = companyRepo.create({ name: 'Empresa Teste', cnpj: '41.777.943/0001-02' });
+      const accessKey = '52260702167542000189550010001993041173601369';
+
+      // 1. Chega Resumo resNFe sem destinatário e sem caminhos de arquivo
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '000000000000010',
+        schema_type: 'resNFe_v1.01.xsd',
+        access_key: accessKey,
+        document_number: '199304',
+        series: '1',
+        issue_date: '2026-07-21T12:40:30-03:00',
+        issuer_cnpj: '02167542000189',
+        issuer_name: 'Fornecedor Combustível',
+        total_value: 2331.00,
+        situacao_fiscal: 'AUTORIZADA',
+      });
+
+      let doc = docRepo.findByAccessKey(accessKey);
+      expect(doc?.document_number).toBe('199304');
+      expect(doc?.recipient_cnpj).toBeNull();
+      expect(doc?.schema_type).toBe('resNFe_v1.01.xsd');
+
+      // 2. Chega XML Completo procNFe com destinatário e arquivo físico
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '000000000000015',
+        schema_type: 'procNFe_v4.00.xsd',
+        access_key: accessKey,
+        document_number: '199304',
+        series: '1',
+        issue_date: '2026-07-21T12:40:30-03:00',
+        issuer_cnpj: '02167542000189',
+        issuer_name: 'Fornecedor Combustível',
+        recipient_cnpj: '41777943000102',
+        recipient_name: 'Empresa Teste',
+        total_value: 2331.00,
+        xml_path: 'C:/XMLs/199304.xml',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_DISPONIVEL',
+        situacao_fiscal: 'AUTORIZADA',
+      });
+
+      doc = docRepo.findByAccessKey(accessKey);
+      expect(doc?.schema_type).toBe('procNFe_v4.00.xsd');
+      expect(doc?.recipient_cnpj).toBe('41777943000102');
+      expect(doc?.recipient_name).toBe('Empresa Teste');
+      expect(doc?.xml_path).toBe('C:/XMLs/199304.xml');
+
+      // 3. Chega Evento de Cancelamento
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '000000000000020',
+        schema_type: 'procEventoNFe_v1.00.xsd',
+        access_key: accessKey,
+        document_number: '199304',
+        series: '1',
+        situacao_fiscal: 'CANCELADA',
+      });
+
+      doc = docRepo.findByAccessKey(accessKey);
+      expect(doc?.situacao_fiscal).toBe('CANCELADA');
+      // Garante que o schema_type NÃO foi rebaixado para procEventoNFe
+      expect(doc?.schema_type).toBe('procNFe_v4.00.xsd');
+      // Garante que o xml_path da procNFe original foi preservado
+      expect(doc?.xml_path).toBe('C:/XMLs/199304.xml');
+
+      // 4. Se um evento subsequente não cancelatório chegar, não deve reverter CANCELADA
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '000000000000025',
+        schema_type: 'resNFe_v1.01.xsd',
+        access_key: accessKey,
+        situacao_fiscal: 'AUTORIZADA',
+      });
+
+      doc = docRepo.findByAccessKey(accessKey);
+      expect(doc?.situacao_fiscal).toBe('CANCELADA');
     });
 
     it('deve filtrar documentos locais por período e chave de acesso com paginação', () => {
