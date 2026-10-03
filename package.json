@@ -1,0 +1,62 @@
+{
+  "name": "buscador-nfe-cte",
+  "version": "1.0.0",
+  "description": "Aplicativo Desktop Profissional para Distribuição, Consulta e Gerenciamento de NF-e e CT-e (SEFAZ)",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:5173 && electron .",
+    "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "npm run build:renderer && npm run build:electron",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"electron/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\""
+  },
+  "keywords": [
+    "nfe",
+    "cte",
+    "sefaz",
+    "dfe",
+    "electron",
+    "react",
+    "sqlite",
+    "icp-brasil"
+  ],
+  "author": "Buscador Fiscal Team",
+  "license": "MIT",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "clsx": "^2.1.1",
+    "fast-xml-parser": "^4.5.3",
+    "lucide-react": "^1.16.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sql.js": "^1.14.2",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.3",
+    "@types/node": "^22.13.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/sql.js": "^1.4.9",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
+    "@typescript-eslint/parser": "^8.26.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "electron": "^34.3.0",
+    "eslint": "^9.21.0",
+    "postcss": "^8.5.3",
+    "prettier": "^3.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0",
+    "vitest": "^3.0.7",
+    "wait-on": "^8.0.2"
+  }
+}

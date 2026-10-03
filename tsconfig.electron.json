@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist-electron",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@domain/*": ["packages/domain/*"],
+      "@database/*": ["packages/database/*"],
+      "@fiscal/*": ["packages/fiscal/*"],
+      "@certificates/*": ["packages/certificates/*"],
+      "@storage/*": ["packages/storage/*"],
+      "@downloads/*": ["packages/downloads/*"]
+    }
+  },
+  "include": [
+    "electron/**/*.ts",
+    "packages/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-electron",
+    "src",
+    "tests"
+  ]
+}
