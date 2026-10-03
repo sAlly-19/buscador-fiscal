@@ -15,7 +15,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-data/
-downloads/
-temp/
+/data/
+/downloads/
+/temp/
 coverage/
