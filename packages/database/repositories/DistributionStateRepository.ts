@@ -35,7 +35,7 @@ export class DistributionStateRepository {
   ): void {
     this.db.execute(
       `UPDATE distribution_state 
-       SET status = ?, last_error = ?, updated_at = datetime('now', 'localtime')
+       SET status = ?, last_error = ?, last_query_at = datetime('now', 'localtime'), updated_at = datetime('now', 'localtime')
        WHERE company_id = ? AND document_type = ?;`,
       [status, lastError || null, companyId, documentType]
     );
