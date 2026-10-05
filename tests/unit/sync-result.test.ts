@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { describeCombinedSyncResult } from '../../packages/domain/sync-result';
+import {
+  describeCombinedSyncResult,
+  presentAfterRefresh,
+} from '../../packages/domain/sync-result';
 import { CombinedSefazQueryResult, SefazQueryResult } from '../../packages/domain/types';
 
 function result(overrides: Partial<SefazQueryResult> = {}): SefazQueryResult {
@@ -16,6 +19,17 @@ function result(overrides: Partial<SefazQueryResult> = {}): SefazQueryResult {
 }
 
 describe('apresentação do resultado de sincronização', () => {
+  it('apresenta o resultado somente depois que a atualização da lista terminar', async () => {
+    let banner: string | null = 'mensagem anterior';
+    await presentAfterRefresh(
+      async () => { banner = null; },
+      'Sincronização parcial',
+      (message) => { banner = message; }
+    );
+
+    expect(banner).toBe('Sincronização parcial');
+  });
+
   it('informa sincronização parcial quando ainda existem NSUs pendentes', () => {
     const combined: CombinedSefazQueryResult = {
       success: true,
@@ -49,5 +63,33 @@ describe('apresentação do resultado de sincronização', () => {
     expect(presentation.type).toBe('success');
     expect(presentation.message).toMatch(/Sincronização concluída/i);
     expect(presentation.message).not.toMatch(/parcial/i);
+  });
+
+  it('não afirma que há documentos pendentes quando a consulta foi adiada sem lacuna de NSU', () => {
+    const combined: CombinedSefazQueryResult = {
+      success: false,
+      nfe: result({
+        success: false,
+        cStat: 656,
+        xMotivo: 'Consumo indevido. Consulta temporariamente bloqueada.',
+        isComplete: false,
+        rateLimitedUntil: '2026-10-05T14:00:00.000Z',
+      }),
+      cte: result({
+        success: false,
+        cStat: 656,
+        xMotivo: 'Consumo indevido. Consulta temporariamente bloqueada.',
+        isComplete: false,
+        rateLimitedUntil: '2026-10-05T14:00:00.000Z',
+      }),
+      documentsCount: 0,
+    };
+
+    const presentation = describeCombinedSyncResult(combined);
+
+    expect(presentation.type).toBe('info');
+    expect(presentation.message).toMatch(/não concluída/i);
+    expect(presentation.message).not.toMatch(/documentos pendentes/i);
+    expect(presentation.message).not.toMatch(/Pendente:/i);
   });
 });

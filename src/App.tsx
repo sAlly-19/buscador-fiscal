@@ -20,7 +20,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { DownloadModal } from './components/DownloadModal';
 import { SefazProgressModal } from './components/SefazProgressModal';
 import { DocumentDetailsModal } from './components/DocumentDetailsModal';
-import { describeCombinedSyncResult } from '../packages/domain/sync-result';
+import { describeCombinedSyncResult, presentAfterRefresh } from '../packages/domain/sync-result';
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -209,27 +209,33 @@ export default function App() {
       }
     });
 
+    let finalAlert: BannerAlertData;
+
     try {
       const result = await window.fiscalApi?.sefaz.consultDocuments(activeCompany.id);
 
       if (result) {
-        setBannerAlert(describeCombinedSyncResult(result));
+        finalAlert = describeCombinedSyncResult(result);
       } else {
-        setBannerAlert({
+        finalAlert = {
           type: 'info',
           message: 'Consulta finalizada sem resultado.',
-        });
+        };
       }
     } catch (err: any) {
-      setBannerAlert({
+      finalAlert = {
         type: 'error',
         message: err.message || 'Falha na comunicação com a SEFAZ.',
-      });
+      };
     } finally {
       unsubscribe?.();
       setIsSefazModalOpen(false);
       // Sempre atualiza o contexto da empresa (NSU, status e documentos) mesmo em caso de erro ou bloqueio
-      loadCompanyContext(activeCompany);
+      await presentAfterRefresh(
+        () => loadCompanyContext(activeCompany),
+        finalAlert!,
+        setBannerAlert
+      );
     }
   };
 
