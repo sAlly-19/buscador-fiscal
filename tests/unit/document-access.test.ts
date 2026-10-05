@@ -41,23 +41,31 @@ describe('autorização de documentos pela empresa ativa', () => {
   let docRepo: DocumentRepository;
   let companyService: CompanyService;
   let temporaryFolder: string;
+  let createBatchZip: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     electronMock.handlers.clear();
+    electronMock.dialog.showOpenDialog.mockReset();
     electronMock.shell.showItemInFolder.mockClear();
     db = await DatabaseManager.create(':memory:');
     companyRepo = new CompanyRepository(db);
     docRepo = new DocumentRepository(db);
     companyService = new CompanyService(companyRepo);
     temporaryFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'document-access-'));
+    const settingsRepo = new SettingsRepository(db);
+    settingsRepo.updateSettings({ default_storage_path: temporaryFolder });
+    createBatchZip = vi.fn(async (_companyName: string, destination: string, files: unknown[]) => ({
+      zipPath: path.join(destination, 'documentos.zip'),
+      filesCount: files.length,
+    }));
 
     registerDocumentHandlers({
       db,
       companyService,
       docRepo,
-      settingsRepo: new SettingsRepository(db),
+      settingsRepo,
       reconciliationService: { reconcileCompanyStorage: vi.fn() },
-      zipService: { createBatchZip: vi.fn() },
+      zipService: { createBatchZip },
     } as unknown as ApplicationContext, () => ({ webContents: electronMock.webContents }) as never);
   });
 
@@ -75,15 +83,16 @@ describe('autorização de documentos pela empresa ativa', () => {
     }, ...args);
   };
 
-  const createDocument = (companyId: number, accessKey: string, xmlPath?: string) => docRepo.upsert({
+  const createDocument = (companyId: number, accessKey: string, xmlPath?: string, pdfPath?: string) => docRepo.upsert({
     company_id: companyId,
     document_type: 'NFE',
     nsu: '1',
     schema_type: 'procNFe',
     access_key: accessKey,
     xml_path: xmlPath,
+    pdf_path: pdfPath,
     xml_status: xmlPath ? 'XML_DISPONIVEL' : 'XML_INDISPONIVEL',
-    pdf_status: 'PDF_INDISPONIVEL',
+    pdf_status: pdfPath ? 'PDF_DISPONIVEL' : 'PDF_INDISPONIVEL',
   });
 
   it('retorna documento da empresa ativa usando referência composta', async () => {
@@ -109,6 +118,36 @@ describe('autorização de documentos pela empresa ativa', () => {
     })).rejects.toThrow(/empresa ativa/i);
   });
 
+  it('trata ID estrangeiro como documento inexistente para a empresa ativa', async () => {
+    const active = companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
+    const inactive = companyRepo.create({ name: 'Empresa Inativa', cnpj: '37.305.384/0001-60' });
+    const foreignDocument = createDocument(inactive.id, '35260937305384000160550010000000021000000002');
+
+    const foreignResult = await invoke('documents:getById', {
+      company_id: active.id,
+      document_id: foreignDocument.id,
+    });
+    const missingResult = await invoke('documents:getById', {
+      company_id: active.id,
+      document_id: 999999,
+    });
+
+    expect(foreignResult).toBeNull();
+    expect(foreignResult).toEqual(missingResult);
+  });
+
+  it('rejeita requisição obsoleta depois da troca de empresa ativa', async () => {
+    const first = companyRepo.create({ name: 'Primeira Empresa', cnpj: '41.777.943/0001-02' });
+    const second = companyRepo.create({ name: 'Segunda Empresa', cnpj: '37.305.384/0001-60' });
+    const document = createDocument(first.id, '35260941777943000102550010000000011000000001');
+    companyRepo.setActive(second.id);
+
+    await expect(invoke('documents:getById', {
+      company_id: first.id,
+      document_id: document.id,
+    })).rejects.toThrow(/empresa ativa/i);
+  });
+
   it('rejeita pesquisa solicitada para empresa diferente da ativa', async () => {
     companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
     const inactive = companyRepo.create({ name: 'Empresa Inativa', cnpj: '37.305.384/0001-60' });
@@ -130,6 +169,101 @@ describe('autorização de documentos pela empresa ativa', () => {
     })).rejects.toThrow(/empresa ativa/i);
   });
 
+  it('rejeita lote misto antes de selecionar destino ou criar ZIP', async () => {
+    const active = companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
+    const inactive = companyRepo.create({ name: 'Empresa Inativa', cnpj: '37.305.384/0001-60' });
+    const activeXml = path.join(temporaryFolder, 'ativo.xml');
+    const foreignXml = path.join(temporaryFolder, 'estrangeiro.xml');
+    fs.writeFileSync(activeXml, '<nfe />');
+    fs.writeFileSync(foreignXml, '<nfe />');
+    const activeDocument = createDocument(active.id, '35260941777943000102550010000000011000000001', activeXml);
+    const foreignDocument = createDocument(inactive.id, '35260937305384000160550010000000021000000002', foreignXml);
+
+    await expect(invoke('documents:downloadBatch', {
+      company_id: active.id,
+      document_ids: [activeDocument.id, foreignDocument.id],
+      include_xml: true,
+      include_pdf: false,
+      destination_folder: temporaryFolder,
+    })).rejects.toThrow(/não foram encontrados/i);
+
+    expect(electronMock.dialog.showOpenDialog).not.toHaveBeenCalled();
+    expect(createBatchZip).not.toHaveBeenCalled();
+    expect(db.queryOne<{ total: number }>('SELECT COUNT(*) AS total FROM download_history;')?.total).toBe(0);
+  });
+
+  it('preserva validação de lotes vazios, inválidos e acima do limite', async () => {
+    const active = companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
+    const common = {
+      company_id: active.id,
+      include_xml: true,
+      include_pdf: false,
+      destination_folder: temporaryFolder,
+    };
+
+    await expect(invoke('documents:downloadBatch', { ...common, document_ids: [] }))
+      .rejects.toThrow(/entre 1 e 500/i);
+    await expect(invoke('documents:downloadBatch', { ...common, document_ids: [0] }))
+      .rejects.toThrow(/ID do documento inválido/i);
+    await expect(invoke('documents:downloadBatch', {
+      ...common,
+      document_ids: Array.from({ length: 501 }, (_, index) => index + 1),
+    })).rejects.toThrow(/entre 1 e 500/i);
+    expect(createBatchZip).not.toHaveBeenCalled();
+  });
+
+  it('deduplica IDs válidos antes de criar o ZIP', async () => {
+    const active = companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
+    const xmlPath = path.join(temporaryFolder, 'ativo.xml');
+    fs.writeFileSync(xmlPath, '<nfe />');
+    const document = createDocument(active.id, '35260941777943000102550010000000011000000001', xmlPath);
+
+    const result = await invoke('documents:downloadBatch', {
+      company_id: active.id,
+      document_ids: [document.id, document.id],
+      include_xml: true,
+      include_pdf: false,
+      destination_folder: temporaryFolder,
+    });
+
+    expect(result).toMatchObject({ success: true, copied_files_count: 1 });
+    expect(createBatchZip).toHaveBeenCalledOnce();
+    expect(createBatchZip.mock.calls[0][2]).toHaveLength(1);
+  });
+
+  it('não exporta XML ou PDF estrangeiro nem grava histórico', async () => {
+    const active = companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
+    const inactive = companyRepo.create({ name: 'Empresa Inativa', cnpj: '37.305.384/0001-60' });
+    const xmlPath = path.join(temporaryFolder, 'estrangeiro.xml');
+    const pdfPath = path.join(temporaryFolder, 'estrangeiro.pdf');
+    fs.writeFileSync(xmlPath, '<nfe />');
+    fs.writeFileSync(pdfPath, '%PDF');
+    const foreignDocument = createDocument(
+      inactive.id,
+      '35260937305384000160550010000000021000000002',
+      xmlPath,
+      pdfPath
+    );
+
+    for (const channel of ['documents:downloadXml', 'documents:downloadPdf']) {
+      const foreignResult = await invoke(channel, {
+        company_id: active.id,
+        document_id: foreignDocument.id,
+        destination_folder: temporaryFolder,
+      });
+      const missingResult = await invoke(channel, {
+        company_id: active.id,
+        document_id: 999999,
+        destination_folder: temporaryFolder,
+      });
+      expect(foreignResult).toEqual(missingResult);
+      expect(foreignResult).toMatchObject({ success: false });
+    }
+
+    expect(electronMock.dialog.showOpenDialog).not.toHaveBeenCalled();
+    expect(db.queryOne<{ total: number }>('SELECT COUNT(*) AS total FROM download_history;')?.total).toBe(0);
+  });
+
   it('abre somente caminho conhecido da empresa ativa', async () => {
     const active = companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
     const xmlPath = path.join(temporaryFolder, 'documento.xml');
@@ -143,5 +277,29 @@ describe('autorização de documentos pela empresa ativa', () => {
 
     expect(result).toBe(true);
     expect(electronMock.shell.showItemInFolder).toHaveBeenCalledWith(xmlPath);
+  });
+
+  it('não abre XML ou PDF conhecido apenas por outra empresa', async () => {
+    const active = companyRepo.create({ name: 'Empresa Ativa', cnpj: '41.777.943/0001-02' });
+    const inactive = companyRepo.create({ name: 'Empresa Inativa', cnpj: '37.305.384/0001-60' });
+    const xmlPath = path.join(temporaryFolder, 'estrangeiro.xml');
+    const pdfPath = path.join(temporaryFolder, 'estrangeiro.pdf');
+    fs.writeFileSync(xmlPath, '<nfe />');
+    fs.writeFileSync(pdfPath, '%PDF');
+    createDocument(inactive.id, '35260937305384000160550010000000021000000002', xmlPath, pdfPath);
+
+    for (const filePath of [xmlPath, pdfPath]) {
+      const foreignResult = await invoke('documents:openFileFolder', {
+        company_id: active.id,
+        file_path: filePath,
+      });
+      const missingResult = await invoke('documents:openFileFolder', {
+        company_id: active.id,
+        file_path: path.join(temporaryFolder, 'inexistente.xml'),
+      });
+      expect(foreignResult).toBe(false);
+      expect(foreignResult).toBe(missingResult);
+    }
+    expect(electronMock.shell.showItemInFolder).not.toHaveBeenCalled();
   });
 });
