@@ -104,8 +104,11 @@ export class DocumentRepository {
     return this.findByAccessKey(cleanKey, doc.company_id)!;
   }
 
-  public findById(id: number): FiscalDocument | null {
-    return this.db.queryOne<FiscalDocument>('SELECT * FROM documents WHERE id = ?;', [id]);
+  public findById(id: number, companyId: number): FiscalDocument | null {
+    return this.db.queryOne<FiscalDocument>(
+      'SELECT * FROM documents WHERE id = ? AND company_id = ?;',
+      [id, companyId]
+    );
   }
 
   public findByAccessKey(accessKey: string, companyId?: number): FiscalDocument | null {
@@ -232,9 +235,10 @@ export class DocumentRepository {
     );
   }
 
-  public isKnownStoragePath(filePath: string): boolean {
+  public isKnownStoragePath(filePath: string, companyId: number): boolean {
     return Boolean(
-      this.db.queryOne('SELECT id FROM documents WHERE xml_path = ? OR pdf_path = ? LIMIT 1;', [
+      this.db.queryOne('SELECT id FROM documents WHERE company_id = ? AND (xml_path = ? OR pdf_path = ?) LIMIT 1;', [
+        companyId,
         filePath,
         filePath,
       ])

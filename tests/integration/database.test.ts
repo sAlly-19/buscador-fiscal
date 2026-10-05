@@ -111,6 +111,43 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
   });
 
   describe('Documentos Fiscais e Deduplicação (DocumentRepository)', () => {
+    it('deve buscar documento por ID somente dentro da empresa informada', () => {
+      const owner = companyRepo.create({ name: 'Empresa Proprietária', cnpj: '41.777.943/0001-02' });
+      const other = companyRepo.create({ name: 'Outra Empresa', cnpj: '37.305.384/0001-60' });
+      const document = docRepo.upsert({
+        company_id: owner.id,
+        document_type: 'NFE',
+        nsu: '1',
+        schema_type: 'procNFe',
+        access_key: '35260941777943000102550010000000011000000001',
+        xml_path: 'C:/Docs/empresa-proprietaria.xml',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+
+      expect(docRepo.findById(document.id, owner.id)?.id).toBe(document.id);
+      expect(docRepo.findById(document.id, other.id)).toBeNull();
+    });
+
+    it('deve reconhecer caminho de storage somente dentro da empresa informada', () => {
+      const owner = companyRepo.create({ name: 'Empresa Proprietária', cnpj: '41.777.943/0001-02' });
+      const other = companyRepo.create({ name: 'Outra Empresa', cnpj: '37.305.384/0001-60' });
+      const xmlPath = 'C:/Docs/empresa-proprietaria.xml';
+      docRepo.upsert({
+        company_id: owner.id,
+        document_type: 'NFE',
+        nsu: '1',
+        schema_type: 'procNFe',
+        access_key: '35260941777943000102550010000000011000000001',
+        xml_path: xmlPath,
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+
+      expect(docRepo.isKnownStoragePath(xmlPath, owner.id)).toBe(true);
+      expect(docRepo.isKnownStoragePath(xmlPath, other.id)).toBe(false);
+    });
+
     it('deve permitir a mesma chave de acesso para empresas diferentes', () => {
       const first = companyRepo.create({ name: 'Empresa 1', cnpj: '41.777.943/0001-02' });
       const second = companyRepo.create({ name: 'Empresa 2', cnpj: '37.305.384/0001-60' });
