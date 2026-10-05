@@ -4,6 +4,12 @@ export type SefazEnvironment = 'homologation' | 'production';
 
 export type FiscalDocumentStatus = 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA';
 
+export type DocumentDataLevel = 'COMPLETE' | 'SUMMARY' | 'EVENT_ONLY';
+
+export type DocumentDirection = 'INBOUND' | 'OUTBOUND';
+
+export type DocumentDateKind = 'ISSUE' | 'EVENT';
+
 export type StorageStatus = 
   | 'RECEBIDO' 
   | 'ARMAZENADO' 
@@ -92,6 +98,9 @@ export interface FiscalDocument {
   xml_status: 'XML_DISPONIVEL' | 'XML_INDISPONIVEL';
   pdf_status: 'PDF_DISPONIVEL' | 'PDF_INDISPONIVEL';
   situacao_fiscal?: FiscalDocumentStatus;
+  data_level?: DocumentDataLevel;
+  direction?: DocumentDirection;
+  date_kind?: DocumentDateKind;
   created_at: string;
   updated_at: string;
 }

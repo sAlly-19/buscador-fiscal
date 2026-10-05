@@ -2,6 +2,7 @@ import { DatabaseManager } from '../connection';
 import { FiscalDocument, DocumentSearchFilters, PaginatedResult } from '../../domain/types';
 import { sanitizeAccessKey } from '../../domain/access-key';
 import { formatNSU } from '../../domain/nsu';
+import { deriveDocumentPresentation } from '../../domain/document-presentation';
 
 export class DocumentRepository {
   constructor(private db: DatabaseManager) {}
@@ -134,37 +135,44 @@ export class DocumentRepository {
   }
 
   public search(filters: DocumentSearchFilters): PaginatedResult<FiscalDocument> {
-    const conditions: string[] = ['company_id = ?', "schema_type NOT LIKE '%Evento%'"];
+    const ownIssuedEventPredicate = `(d.document_type = 'NFE'
+      AND d.schema_type LIKE '%Evento%'
+      AND length(d.access_key) = 44
+      AND substr(d.access_key, 7, 14) = c.cnpj)`;
+    const visibilityPredicate = `(d.schema_type NOT LIKE '%Evento%' OR ${ownIssuedEventPredicate})`;
+    const effectiveIssuerCnpj = `(CASE WHEN ${ownIssuedEventPredicate} THEN c.cnpj ELSE d.issuer_cnpj END)`;
+    const effectiveIssuerName = `(CASE WHEN ${ownIssuedEventPredicate} THEN c.name ELSE d.issuer_name END)`;
+    const conditions: string[] = ['d.company_id = ?', visibilityPredicate];
     const params: any[] = [filters.company_id];
 
     if (filters.document_types && filters.document_types.length > 0) {
       const placeholders = filters.document_types.map(() => '?').join(',');
-      conditions.push(`document_type IN (${placeholders})`);
+      conditions.push(`d.document_type IN (${placeholders})`);
       params.push(...filters.document_types);
     }
 
     if (filters.start_date) {
-      conditions.push('substr(issue_date, 1, 10) >= ?');
+      conditions.push('substr(d.issue_date, 1, 10) >= ?');
       params.push(filters.start_date);
     }
 
     if (filters.end_date) {
-      conditions.push('substr(issue_date, 1, 10) <= ?');
+      conditions.push('substr(d.issue_date, 1, 10) <= ?');
       params.push(filters.end_date);
     }
 
     if (filters.access_key) {
-      conditions.push('access_key LIKE ?');
+      conditions.push('d.access_key LIKE ?');
       params.push(`%${sanitizeAccessKey(filters.access_key)}%`);
     }
 
     if (filters.document_number) {
-      conditions.push('document_number LIKE ?');
+      conditions.push('d.document_number LIKE ?');
       params.push(`%${filters.document_number.trim()}%`);
     }
 
     if (filters.issuer_cnpj_or_name) {
-      conditions.push('(issuer_cnpj LIKE ? OR issuer_name LIKE ?)');
+      conditions.push(`(${effectiveIssuerCnpj} LIKE ? OR ${effectiveIssuerName} LIKE ?)`);
       const term = `%${filters.issuer_cnpj_or_name.trim()}%`;
       params.push(term, term);
     }
@@ -174,38 +182,39 @@ export class DocumentRepository {
       const digits = sanitizeAccessKey(raw);
       const likeRaw = `%${raw}%`;
       const clauses = [
-        'document_number LIKE ?',
-        'series LIKE ?',
-        'issuer_cnpj LIKE ?',
-        'issuer_name LIKE ?',
-        'recipient_cnpj LIKE ?',
-        'recipient_name LIKE ?',
+        'd.document_number LIKE ?',
+        'd.series LIKE ?',
+        `${effectiveIssuerCnpj} LIKE ?`,
+        `${effectiveIssuerName} LIKE ?`,
+        'd.recipient_cnpj LIKE ?',
+        'd.recipient_name LIKE ?',
       ];
       params.push(likeRaw, likeRaw, likeRaw, likeRaw, likeRaw, likeRaw);
       if (digits) {
-        clauses.push('access_key LIKE ?');
+        clauses.push('d.access_key LIKE ?');
         params.push(`%${digits}%`);
       }
       conditions.push(`(${clauses.join(' OR ')})`);
     }
 
     if (filters.series) {
-      conditions.push('series = ?');
+      conditions.push('d.series = ?');
       params.push(filters.series.trim());
     }
     if (filters.xml_status) {
-      conditions.push('xml_status = ?');
+      conditions.push('d.xml_status = ?');
       params.push(filters.xml_status);
     }
     if (filters.pdf_status) {
-      conditions.push('pdf_status = ?');
+      conditions.push('d.pdf_status = ?');
       params.push(filters.pdf_status);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Contagem total
-    const countSql = `SELECT COUNT(*) as total FROM documents ${whereClause};`;
+    const fromClause = 'FROM documents d JOIN companies c ON c.id = d.company_id';
+    const countSql = `SELECT COUNT(*) as total ${fromClause} ${whereClause};`;
     const countRow = this.db.queryOne<{ total: number }>(countSql, params);
     const total = countRow?.total || 0;
 
@@ -215,12 +224,18 @@ export class DocumentRepository {
     const offset = (page - 1) * pageSize;
 
     const dataSql = `
-      SELECT * FROM documents 
+      SELECT d.*, c.name AS company_name, c.cnpj AS company_cnpj ${fromClause}
       ${whereClause} 
-      ORDER BY issue_date DESC, id DESC 
+      ORDER BY d.issue_date DESC, d.id DESC
       LIMIT ? OFFSET ?;
     `;
-    const items = this.db.queryAll<FiscalDocument>(dataSql, [...params, pageSize, offset]);
+    const rows = this.db.queryAll<FiscalDocument & { company_name: string; company_cnpj: string }>(
+      dataSql,
+      [...params, pageSize, offset],
+    );
+    const items = rows.map(({ company_name, company_cnpj, ...document }) =>
+      deriveDocumentPresentation(document, { name: company_name, cnpj: company_cnpj })
+    );
 
     return {
       items,

@@ -111,6 +111,73 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
   });
 
   describe('Documentos Fiscais e Deduplicação (DocumentRepository)', () => {
+    it('lista somente evento NF-e proprio como saida parcial e mantem contagem e busca coerentes', () => {
+      const company = companyRepo.create({
+        name: 'SUPERMERCADO PRECO BAIXO TODO DIA',
+        cnpj: '41.573.774/0001-99',
+      });
+      const ownEvent = docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '1',
+        schema_type: 'procEventoNFe_v1.00.xsd',
+        access_key: '52260941573774000199550020000018021000130318',
+        document_number: '1802',
+        series: '2',
+        issue_date: '2026-10-01T08:00:00-03:00',
+        issuer_name: 'Ciencia da Operacao',
+        total_value: 0,
+        xml_path: 'C:/Docs/ciencia.xml',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '2',
+        schema_type: 'procEventoNFe_v1.00.xsd',
+        access_key: '52260941777943000102550020000018021000130318',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'CTE',
+        nsu: '3',
+        schema_type: 'procEventoCTe_v3.00.xsd',
+        access_key: '52260941573774000199570020000018021000130318',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '4',
+        schema_type: 'procEventoNFe_v1.00.xsd',
+        access_key: '41573774000199',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+
+      const result = docRepo.search({ company_id: company.id, page_size: 50 });
+
+      expect(result.total).toBe(1);
+      expect(result.items).toHaveLength(result.total);
+      expect(result.items[0]).toMatchObject({
+        id: ownEvent.id,
+        data_level: 'EVENT_ONLY',
+        direction: 'OUTBOUND',
+        date_kind: 'EVENT',
+        issuer_name: company.name,
+        issuer_cnpj: company.cnpj,
+      });
+      expect(result.items[0].total_value).toBeUndefined();
+      expect(result.items[0].issuer_name).not.toMatch(/ciencia/i);
+
+      const byCompanyName = docRepo.search({ company_id: company.id, search_query: 'PRECO BAIXO' });
+      expect(byCompanyName.items.map((item) => item.id)).toEqual([ownEvent.id]);
+    });
+
     it('não deve listar eventos de manifestação como documentos fiscais', () => {
       const company = companyRepo.create({ name: 'Empresa Teste', cnpj: '41.777.943/0001-02' });
       docRepo.upsert({
@@ -188,7 +255,10 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
       expect(summary.issuer_name).toBe('SUPERMERCADO FORNECEDOR LTDA');
       expect(summary.total_value).toBe(249.9);
       expect(summary.xml_path).toBe('C:/Docs/resumo.xml');
-      expect(docRepo.search({ company_id: company.id }).total).toBe(1);
+      const promoted = docRepo.search({ company_id: company.id });
+      expect(promoted.total).toBe(1);
+      expect(promoted.items[0].data_level).toBe('SUMMARY');
+      expect(promoted.items[0].date_kind).toBe('ISSUE');
     });
 
     it('deve buscar documento por ID somente dentro da empresa informada', () => {
