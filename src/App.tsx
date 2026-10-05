@@ -12,8 +12,7 @@ import { AppHeader } from './components/layout/AppHeader';
 import { FeedbackModalHost } from './components/feedback/FeedbackModalHost';
 import { ConfirmDialog } from './components/feedback/ConfirmDialog';
 import { CompanySidebar } from './components/layout/CompanySidebar';
-import { FilterBar } from './components/FilterBar';
-import { DocumentTable } from './components/DocumentTable/DocumentTable';
+import { DocumentWorkspace } from './components/documents/DocumentWorkspace';
 import { FooterDownloadBar } from './components/FooterDownloadBar';
 import { CompanyModal } from './components/CompanyModal';
 import { CertificateModal } from './components/CertificateModal';
@@ -407,41 +406,35 @@ export default function App() {
           onOpenCertModal={() => setIsCertModalOpen(true)}
         />
       )}
-      toolbar={(
-        <>
-        {/* CONTEÚDO PRINCIPAL: DOCUMENTOS E FILTROS */}
-          <FilterBar
-            nsuStatus={nsuStatus}
-            selectedDocTypes={selectedDocTypes}
-            onToggleDocType={(type, checked) => setSelectedDocTypes(prev => ({ ...prev, [type]: checked }))}
-            startDate={startDate}
-            onStartDateChange={setStartDate}
-            endDate={endDate}
-            onEndDateChange={setEndDate}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            onSearchLocal={() => searchLocalDocuments()}
-            onResetNSU={handleResetNSU}
-          />
-        </>
-      )}
+      toolbar={null}
       content={(
-          <DocumentTable
-            documents={documents}
-            totalDocs={totalDocs}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            pageSize={normalizePageSize(settings?.items_per_page)}
-            selectedDocIds={selectedDocIds}
-            loadingDocs={loadingDocs}
-            onToggleSelectAll={toggleSelectAll}
-            onToggleSelectDoc={toggleSelectDoc}
-            onViewDetails={(doc) => setSelectedDetailsDoc(doc)}
-            onDownloadXml={handleDownloadXml}
-            onDownloadPdf={handleDownloadPdf}
-            onPageChange={(page) => searchLocalDocuments(undefined, page)}
-            onPageSizeChange={(size) => void handlePageSizeChange(size)}
-          />
+        <DocumentWorkspace
+          nsuStatus={nsuStatus}
+          selectedDocTypes={selectedDocTypes}
+          onToggleDocType={(type, checked) => setSelectedDocTypes(prev => ({ ...prev, [type]: checked }))}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          onSearchLocal={() => searchLocalDocuments()}
+          onResetNSU={handleResetNSU}
+          documents={documents}
+          totalDocs={totalDocs}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={normalizePageSize(settings?.items_per_page)}
+          selectedDocIds={selectedDocIds}
+          loadingDocs={loadingDocs}
+          onToggleSelectAll={toggleSelectAll}
+          onToggleSelectDoc={toggleSelectDoc}
+          onViewDetails={(doc) => setSelectedDetailsDoc(doc)}
+          onDownloadXml={handleDownloadXml}
+          onDownloadPdf={handleDownloadPdf}
+          onPageChange={(page) => searchLocalDocuments(undefined, page)}
+          onPageSizeChange={(size) => void handlePageSizeChange(size)}
+        />
       )}
 
       footer={(
