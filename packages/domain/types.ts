@@ -146,7 +146,22 @@ export interface CombinedSefazQueryResult {
   documentsCount: number;
 }
 
+export interface DocumentReference {
+  company_id: number;
+  document_id: number;
+}
+
+export interface DocumentDownloadRequest extends DocumentReference {
+  destination_folder?: string;
+}
+
+export interface DocumentStoragePathRequest {
+  company_id: number;
+  file_path: string;
+}
+
 export interface DownloadBatchOptions {
+  company_id: number;
   document_ids: number[];
   include_xml: boolean;
   include_pdf: boolean;
