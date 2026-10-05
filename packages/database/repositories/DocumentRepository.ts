@@ -23,34 +23,42 @@ export class DocumentRepository {
         schema_type = CASE
           WHEN documents.schema_type LIKE 'procNFe%' OR documents.schema_type LIKE 'procCTe%' THEN documents.schema_type
           WHEN excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%' THEN excluded.schema_type
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' THEN excluded.schema_type
           ELSE COALESCE(documents.schema_type, excluded.schema_type)
         END,
         document_number = CASE
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.document_number IS NOT NULL THEN excluded.document_number
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.document_number IS NOT NULL THEN excluded.document_number
           ELSE COALESCE(NULLIF(documents.document_number, ''), NULLIF(excluded.document_number, ''))
         END,
         series = CASE
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.series IS NOT NULL THEN excluded.series
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.series IS NOT NULL THEN excluded.series
           ELSE COALESCE(NULLIF(documents.series, ''), NULLIF(excluded.series, ''))
         END,
         issue_date = CASE
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issue_date IS NOT NULL THEN excluded.issue_date
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issue_date IS NOT NULL THEN excluded.issue_date
           ELSE COALESCE(NULLIF(documents.issue_date, ''), NULLIF(excluded.issue_date, ''))
         END,
         issuer_cnpj = CASE
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issuer_cnpj IS NOT NULL THEN excluded.issuer_cnpj
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issuer_cnpj IS NOT NULL THEN excluded.issuer_cnpj
           ELSE COALESCE(NULLIF(documents.issuer_cnpj, ''), NULLIF(excluded.issuer_cnpj, ''))
         END,
         issuer_name = CASE
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issuer_name IS NOT NULL THEN excluded.issuer_name
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.issuer_name IS NOT NULL THEN excluded.issuer_name
           ELSE COALESCE(NULLIF(documents.issuer_name, ''), NULLIF(excluded.issuer_name, ''))
         END,
         recipient_cnpj = CASE
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.recipient_cnpj IS NOT NULL THEN excluded.recipient_cnpj
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.recipient_cnpj IS NOT NULL THEN excluded.recipient_cnpj
           ELSE COALESCE(NULLIF(documents.recipient_cnpj, ''), NULLIF(excluded.recipient_cnpj, ''))
         END,
         recipient_name = CASE
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.recipient_name IS NOT NULL THEN excluded.recipient_name
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.recipient_name IS NOT NULL THEN excluded.recipient_name
           ELSE COALESCE(NULLIF(documents.recipient_name, ''), NULLIF(excluded.recipient_name, ''))
         END,
         total_value = CASE
@@ -61,6 +69,7 @@ export class DocumentRepository {
         xml_path = CASE
           WHEN (documents.schema_type LIKE 'procNFe%' OR documents.schema_type LIKE 'procCTe%') AND documents.schema_type NOT LIKE '%Evento%' AND documents.xml_path IS NOT NULL THEN documents.xml_path
           WHEN (excluded.schema_type LIKE 'procNFe%' OR excluded.schema_type LIKE 'procCTe%') AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.xml_path IS NOT NULL THEN excluded.xml_path
+          WHEN documents.schema_type LIKE '%Evento%' AND excluded.schema_type NOT LIKE '%Evento%' AND excluded.xml_path IS NOT NULL THEN excluded.xml_path
           ELSE COALESCE(documents.xml_path, excluded.xml_path)
         END,
         pdf_path = COALESCE(excluded.pdf_path, documents.pdf_path),
@@ -125,7 +134,7 @@ export class DocumentRepository {
   }
 
   public search(filters: DocumentSearchFilters): PaginatedResult<FiscalDocument> {
-    const conditions: string[] = ['company_id = ?'];
+    const conditions: string[] = ['company_id = ?', "schema_type NOT LIKE '%Evento%'"];
     const params: any[] = [filters.company_id];
 
     if (filters.document_types && filters.document_types.length > 0) {

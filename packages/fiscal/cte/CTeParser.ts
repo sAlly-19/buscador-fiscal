@@ -202,13 +202,6 @@ export class CTeParser {
           const isCancelamento = tpEvento === '110111';
           const docNumber = keyInfo ? String(Number(keyInfo.numero)) : undefined;
           const series = keyInfo ? String(Number(keyInfo.serie)) : undefined;
-          const eventDesc =
-            infEvento.xEvento ||
-            infEvento.descEvento ||
-            infEvento.detEvento?.evCancCTe?.descEvento ||
-            infEvento.detEvento?.descEvento ||
-            parsed.procEventoCTe?.retEventoCTe?.infEvento?.xEvento ||
-            (isCancelamento ? 'Cancelamento de CT-e' : 'Evento de CT-e');
 
           return {
             document_type: 'CTE',
@@ -220,8 +213,8 @@ export class CTeParser {
             document_number: docNumber,
             series,
             issue_date: String(infEvento.dhEvento || ''),
-            issuer_cnpj: String(infEvento.CNPJ || infEvento.CPF || ''),
-            issuer_name: String(eventDesc),
+            issuer_cnpj: undefined,
+            issuer_name: undefined,
             recipient_cnpj: undefined,
             recipient_name: undefined,
             total_value: 0,

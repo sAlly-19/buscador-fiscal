@@ -111,6 +111,86 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
   });
 
   describe('Documentos Fiscais e Deduplicação (DocumentRepository)', () => {
+    it('não deve listar eventos de manifestação como documentos fiscais', () => {
+      const company = companyRepo.create({ name: 'Empresa Teste', cnpj: '41.777.943/0001-02' });
+      docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '1',
+        schema_type: 'procEventoNFe_v1.00.xsd',
+        access_key: '52260941573774000199550020000018021000130318',
+        document_number: '1802',
+        issuer_name: 'Ciencia da Operacao',
+        xml_path: 'C:/Docs/ciencia.xml',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+      const summary = docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '2',
+        schema_type: 'resNFe_v1.01.xsd',
+        access_key: '35260941777943000102550010000000011000000001',
+        document_number: '1',
+        issuer_name: 'Fornecedor Real',
+        xml_path: 'C:/Docs/resumo.xml',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+
+      const result = docRepo.search({ company_id: company.id });
+
+      expect(result.total).toBe(1);
+      expect(result.items.map((document) => document.id)).toEqual([summary.id]);
+    });
+
+    it('deve substituir placeholder de evento quando o resumo da NF-e chegar depois', () => {
+      const company = companyRepo.create({ name: 'Empresa Teste', cnpj: '41.777.943/0001-02' });
+      const accessKey = '52260941573774000199550020000018021000130318';
+      const event = docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '10',
+        schema_type: 'procEventoNFe_v1.00.xsd',
+        access_key: accessKey,
+        document_number: '1802',
+        series: '2',
+        issue_date: '2026-10-01T08:00:00-03:00',
+        issuer_cnpj: company.cnpj,
+        issuer_name: 'Ciencia da Operacao',
+        total_value: 0,
+        xml_path: 'C:/Docs/ciencia.xml',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+
+      const summary = docRepo.upsert({
+        company_id: company.id,
+        document_type: 'NFE',
+        nsu: '11',
+        schema_type: 'resNFe_v1.01.xsd',
+        access_key: accessKey,
+        document_number: '1802',
+        series: '2',
+        issue_date: '2026-09-30T12:00:00-03:00',
+        issuer_cnpj: '41573774000199',
+        issuer_name: 'SUPERMERCADO FORNECEDOR LTDA',
+        total_value: 249.9,
+        xml_path: 'C:/Docs/resumo.xml',
+        xml_status: 'XML_DISPONIVEL',
+        pdf_status: 'PDF_INDISPONIVEL',
+      });
+
+      expect(summary.id).toBe(event.id);
+      expect(summary.schema_type).toBe('resNFe_v1.01.xsd');
+      expect(summary.issue_date).toBe('2026-09-30T12:00:00-03:00');
+      expect(summary.issuer_cnpj).toBe('41573774000199');
+      expect(summary.issuer_name).toBe('SUPERMERCADO FORNECEDOR LTDA');
+      expect(summary.total_value).toBe(249.9);
+      expect(summary.xml_path).toBe('C:/Docs/resumo.xml');
+      expect(docRepo.search({ company_id: company.id }).total).toBe(1);
+    });
+
     it('deve buscar documento por ID somente dentro da empresa informada', () => {
       const owner = companyRepo.create({ name: 'Empresa Proprietária', cnpj: '41.777.943/0001-02' });
       const other = companyRepo.create({ name: 'Outra Empresa', cnpj: '37.305.384/0001-60' });

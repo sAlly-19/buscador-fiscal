@@ -107,6 +107,28 @@ describe('Parsers Fiscais (NFeParser e CTeParser)', () => {
       expect(parsed?.situacao_fiscal).toBe('CANCELADA');
     });
 
+    it('não deve tratar Ciência da Operação como emitente da NF-e', () => {
+      const xml = `<procEventoNFe versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+        <evento versao="1.00">
+          <infEvento Id="ID2102105226094157377400019955002000001802100013031801">
+            <CNPJ>41777943000102</CNPJ>
+            <chNFe>52260941573774000199550020000018021000130318</chNFe>
+            <dhEvento>2026-09-30T14:52:23-03:00</dhEvento>
+            <tpEvento>210210</tpEvento>
+            <detEvento versao="1.00"><descEvento>Ciencia da Operacao</descEvento></detEvento>
+          </infEvento>
+        </evento>
+        <retEvento versao="1.00"><infEvento><xEvento>Ciencia da Operacao</xEvento></infEvento></retEvento>
+      </procEventoNFe>`;
+
+      const parsed = nfeParser.parseDocumentXml(xml, '5', 'procEventoNFe_v1.00.xsd');
+
+      expect(parsed).not.toBeNull();
+      expect(parsed?.schema_type).toBe('procEventoNFe_v1.00.xsd');
+      expect(parsed?.issuer_name).toBeUndefined();
+      expect(parsed?.issuer_cnpj).toBeUndefined();
+    });
+
     it('deve lançar erro descritivo quando a SEFAZ retornar SOAP Fault', () => {
       const soapFault = `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
         <soap:Body>
@@ -148,6 +170,24 @@ describe('Parsers Fiscais (NFeParser e CTeParser)', () => {
       expect(parsed?.series).toBe('2');
       expect(parsed?.document_type).toBe('CTE');
       expect(parsed?.situacao_fiscal).toBe('AUTORIZADA');
+    });
+
+    it('não deve tratar a descrição de evento como emitente do CT-e', () => {
+      const xml = `<procEventoCTe versao="4.00" xmlns="http://www.portalfiscal.inf.br/cte">
+        <eventoCTe versao="4.00"><infEvento>
+          <CNPJ>41777943000102</CNPJ>
+          <chCTe>52260812345678000190570020000084501123456789</chCTe>
+          <dhEvento>2026-09-30T14:52:23-03:00</dhEvento>
+          <tpEvento>110110</tpEvento>
+          <detEvento><descEvento>Evento de CT-e</descEvento></detEvento>
+        </infEvento></eventoCTe>
+      </procEventoCTe>`;
+
+      const parsed = cteParser.parseDocumentXml(xml, '2', 'procEventoCTe_v4.00.xsd');
+
+      expect(parsed).not.toBeNull();
+      expect(parsed?.issuer_name).toBeUndefined();
+      expect(parsed?.issuer_cnpj).toBeUndefined();
     });
 
     it('deve lançar erro descritivo quando o CT-e retornar SOAP Fault', () => {

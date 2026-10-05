@@ -211,12 +211,6 @@ export class NFeParser {
           const isCancelamento = tpEvento === '110111';
           const docNumber = keyInfo ? String(Number(keyInfo.numero)) : undefined;
           const series = keyInfo ? String(Number(keyInfo.serie)) : undefined;
-          const eventDesc =
-            infEvento.xEvento ||
-            infEvento.descEvento ||
-            infEvento.detEvento?.descEvento ||
-            parsed.procEventoNFe?.retEvento?.infEvento?.xEvento ||
-            (isCancelamento ? 'Cancelamento de NF-e' : 'Evento de NF-e');
 
           return {
             document_type: 'NFE',
@@ -227,8 +221,8 @@ export class NFeParser {
             document_number: docNumber,
             series,
             issue_date: String(infEvento.dhEvento || ''),
-            issuer_cnpj: String(infEvento.CNPJ || infEvento.CPF || ''),
-            issuer_name: String(eventDesc),
+            issuer_cnpj: undefined,
+            issuer_name: undefined,
             recipient_cnpj: undefined,
             recipient_name: undefined,
             total_value: 0,
