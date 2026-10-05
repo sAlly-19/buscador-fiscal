@@ -7,9 +7,10 @@ import {
   DocumentType,
   DownloadBatchResult
 } from '../packages/domain/types';
-import { AlertBanner, BannerAlertData } from './components/AlertBanner';
 import { AppShell } from './components/layout/AppShell';
 import { AppHeader } from './components/layout/AppHeader';
+import { FeedbackModalHost } from './components/feedback/FeedbackModalHost';
+import { ConfirmDialog } from './components/feedback/ConfirmDialog';
 import { CompanyList } from './components/Sidebar/CompanyList';
 import { CertificateCard } from './components/Sidebar/CertificateCard';
 import { FilterBar } from './components/FilterBar';
@@ -21,10 +22,11 @@ import { SettingsModal } from './components/SettingsModal';
 import { DownloadModal } from './components/DownloadModal';
 import { SefazProgressModal } from './components/SefazProgressModal';
 import { DocumentDetailsModal } from './components/DocumentDetailsModal';
-import { describeCombinedSyncResult, presentAfterRefresh } from '../packages/domain/sync-result';
+import { presentAfterRefresh } from '../packages/domain/sync-result';
 import { normalizePageSize, PageSize } from '../packages/domain/page-size';
 import { changePageSize } from './features/documents/page-size-controller';
-import { useUiStore } from './stores/ui.store';
+import { FeedbackInput, useUiStore } from './stores/ui.store';
+import { feedbackFromError, feedbackFromSyncResult } from './features/feedback/feedback-adapters';
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -36,6 +38,7 @@ function formatLocalDate(date: Date): string {
 export default function App() {
   const theme = useUiStore((state) => state.theme);
   const toggleTheme = useUiStore((state) => state.toggleTheme);
+  const pushFeedback = useUiStore((state) => state.pushFeedback);
   const companyContextRequest = useRef(0);
   const documentSearchRequest = useRef(0);
   // Estados principais
@@ -73,6 +76,8 @@ export default function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [selectedDetailsDoc, setSelectedDetailsDoc] = useState<FiscalDocument | null>(null);
+  const [pendingNsuReset, setPendingNsuReset] = useState<'NFE' | 'CTE' | null>(null);
+  const [isResettingNsu, setIsResettingNsu] = useState(false);
 
   // Consulta SEFAZ e Feedback
   const [isSefazModalOpen, setIsSefazModalOpen] = useState(false);
@@ -80,7 +85,6 @@ export default function App() {
   const [sefazProgressNSU, setSefazProgressNSU] = useState('');
   const [sefazReceivedCount, setSefazReceivedCount] = useState<number | undefined>(undefined);
   const [activeConsultType, setActiveConsultType] = useState<'NF-e' | 'CT-e'>('NF-e');
-  const [bannerAlert, setBannerAlert] = useState<BannerAlertData | null>(null);
 
   // Carregamento inicial
   useEffect(() => {
@@ -104,7 +108,7 @@ export default function App() {
         loadCompanyContext(target, curSettings || undefined);
       }
     } catch (err: any) {
-      setBannerAlert({ type: 'error', message: err.message || 'Falha ao inicializar dados locais.' });
+      pushFeedback(feedbackFromError('Falha ao iniciar o aplicativo', err, 'Falha ao inicializar dados locais.'));
     }
   };
 
@@ -133,7 +137,7 @@ export default function App() {
         loadCompanyContext(selected);
       }
     } catch (err: any) {
-      setBannerAlert({ type: 'error', message: err.message });
+      pushFeedback(feedbackFromError('Falha ao selecionar empresa', err, 'Não foi possível selecionar a empresa.'));
     }
   };
 
@@ -148,7 +152,6 @@ export default function App() {
     const requestId = ++documentSearchRequest.current;
 
     setLoadingDocs(true);
-    setBannerAlert(null);
 
     const docTypes: DocumentType[] = [];
     const effectiveTypes = typeOverride || selectedDocTypes;
@@ -173,7 +176,9 @@ export default function App() {
         setTotalPages(result.total_pages);
       }
     } catch (err: any) {
-      if (requestId === documentSearchRequest.current) setBannerAlert({ type: 'error', message: err.message || 'Falha ao buscar documentos locais.' });
+      if (requestId === documentSearchRequest.current) {
+        pushFeedback(feedbackFromError('Falha ao buscar documentos', err, 'Falha ao buscar documentos locais.'));
+      }
     } finally {
       if (requestId === documentSearchRequest.current) setLoadingDocs(false);
     }
@@ -183,16 +188,18 @@ export default function App() {
   const handleConsultSefaz = async () => {
     if (!activeCompany) return;
     if (!companyCert) {
-      setBannerAlert({
-        type: 'error',
+      pushFeedback({
+        kind: 'error',
+        title: 'Certificado digital ausente',
         message: 'Nenhum certificado associado a esta empresa. Por favor, vincule um certificado na barra lateral.',
       });
       setIsCertModalOpen(true);
       return;
     }
     if (companyCert.is_expired) {
-      setBannerAlert({
-        type: 'error',
+      pushFeedback({
+        kind: 'error',
+        title: 'Certificado digital expirado',
         message: 'O certificado associado a esta empresa está expirado. Selecione um certificado válido.',
       });
       return;
@@ -215,32 +222,34 @@ export default function App() {
       }
     });
 
-    let finalAlert: BannerAlertData;
+    let finalFeedback: FeedbackInput;
 
     try {
       const result = await window.fiscalApi?.sefaz.consultDocuments(activeCompany.id);
 
       if (result) {
-        finalAlert = describeCombinedSyncResult(result);
+        finalFeedback = feedbackFromSyncResult(result);
       } else {
-        finalAlert = {
-          type: 'info',
+        finalFeedback = {
+          kind: 'info',
+          title: 'Sincronização finalizada',
           message: 'Consulta finalizada sem resultado.',
         };
       }
     } catch (err: any) {
-      finalAlert = {
-        type: 'error',
-        message: err.message || 'Falha na comunicação com a SEFAZ.',
-      };
+      finalFeedback = feedbackFromError(
+        'Erro na sincronização',
+        err,
+        'Falha na comunicação com a SEFAZ.',
+      );
     } finally {
       unsubscribe?.();
       setIsSefazModalOpen(false);
       // Sempre atualiza o contexto da empresa (NSU, status e documentos) mesmo em caso de erro ou bloqueio
       await presentAfterRefresh(
         () => loadCompanyContext(activeCompany),
-        finalAlert!,
-        setBannerAlert
+        finalFeedback!,
+        pushFeedback
       );
     }
   };
@@ -249,30 +258,36 @@ export default function App() {
     if (activeCompany) {
       await window.fiscalApi?.sefaz.cancelQuery(activeCompany.id);
       setIsSefazModalOpen(false);
-      setBannerAlert({ type: 'info', message: 'Solicitação de cancelamento enviada à SEFAZ.' });
+      pushFeedback({
+        kind: 'info',
+        title: 'Cancelamento solicitado',
+        message: 'Solicitação de cancelamento enviada à SEFAZ.',
+      });
     }
   };
 
-  const handleResetNSU = async (docType: 'NFE' | 'CTE') => {
-    if (!activeCompany) return;
-    const label = docType === 'NFE' ? 'NF-e' : 'CT-e';
-    const confirm = window.confirm(
-      `Deseja resetar o contador de NSU de ${label} para 000000000000000?\n\nOs documentos já salvos localmente serão preservados e a próxima consulta à SEFAZ buscará todo o histórico disponível desde o início.`
-    );
-    if (!confirm) return;
+  const handleResetNSU = (docType: 'NFE' | 'CTE') => {
+    if (activeCompany) setPendingNsuReset(docType);
+  };
 
+  const handleConfirmResetNSU = async () => {
+    if (!activeCompany || !pendingNsuReset) return;
+    const docType = pendingNsuReset;
+    const label = docType === 'NFE' ? 'NF-e' : 'CT-e';
+    setIsResettingNsu(true);
     try {
       await window.fiscalApi?.sefaz.resetNSU(activeCompany.id, docType);
       await loadCompanyContext(activeCompany);
-      setBannerAlert({
-        type: 'success',
+      pushFeedback({
+        kind: 'success',
+        title: `NSU de ${label} resetado`,
         message: `NSU de ${label} resetado com sucesso para 000000000000000. Agora você pode clicar em Sincronizar para nova busca.`,
       });
     } catch (err: any) {
-      setBannerAlert({
-        type: 'error',
-        message: err.message || 'Falha ao resetar NSU.',
-      });
+      pushFeedback(feedbackFromError('Falha ao resetar NSU', err, 'Falha ao resetar NSU.'));
+    } finally {
+      setIsResettingNsu(false);
+      setPendingNsuReset(null);
     }
   };
 
@@ -285,12 +300,12 @@ export default function App() {
         document_id: docId,
       });
       if (res?.success) {
-        setBannerAlert({ type: 'success', message: `XML exportado com sucesso para: ${res.filePath}` });
+        pushFeedback({ kind: 'success', title: 'XML exportado', message: `XML exportado com sucesso para: ${res.filePath}` });
       } else if (res?.error && res.error !== 'Operação cancelada.') {
-        setBannerAlert({ type: 'error', message: res.error });
+        pushFeedback(feedbackFromError('Falha ao exportar XML', res.error, 'Não foi possível exportar o XML.'));
       }
     } catch (err: any) {
-      setBannerAlert({ type: 'error', message: err.message });
+      pushFeedback(feedbackFromError('Falha ao exportar XML', err, 'Não foi possível exportar o XML.'));
     }
   };
 
@@ -302,12 +317,12 @@ export default function App() {
         document_id: docId,
       });
       if (res?.success) {
-        setBannerAlert({ type: 'success', message: `PDF exportado com sucesso para: ${res.filePath}` });
+        pushFeedback({ kind: 'success', title: 'PDF exportado', message: `PDF exportado com sucesso para: ${res.filePath}` });
       } else if (res?.error && res.error !== 'Operação cancelada.') {
-        setBannerAlert({ type: 'error', message: res.error });
+        pushFeedback(feedbackFromError('Falha ao exportar PDF', res.error, 'Não foi possível exportar o PDF.'));
       }
     } catch (err: any) {
-      setBannerAlert({ type: 'error', message: err.message });
+      pushFeedback(feedbackFromError('Falha ao exportar PDF', err, 'Não foi possível exportar o PDF.'));
     }
   };
 
@@ -348,7 +363,7 @@ export default function App() {
         },
       );
     } catch (err: any) {
-      setBannerAlert({ type: 'error', message: err.message || 'Falha ao alterar itens por página.' });
+      pushFeedback(feedbackFromError('Falha ao alterar paginação', err, 'Falha ao alterar itens por página.'));
     }
   };
 
@@ -401,11 +416,6 @@ export default function App() {
       )}
       toolbar={(
         <>
-          <AlertBanner
-            bannerAlert={bannerAlert}
-            onDismiss={() => setBannerAlert(null)}
-          />
-
         {/* CONTEÚDO PRINCIPAL: DOCUMENTOS E FILTROS */}
           <FilterBar
             nsuStatus={nsuStatus}
@@ -494,8 +504,9 @@ export default function App() {
           selectedDocIds={selectedDocIds}
           defaultFolder={settings?.default_storage_path}
           onSuccess={(res: DownloadBatchResult) => {
-            setBannerAlert({
-              type: 'success',
+            pushFeedback({
+              kind: 'success',
+              title: 'Lote exportado',
               message: `Arquivo ZIP com ${res.copied_files_count} documento(s) gerado com sucesso em: ${res.zip_path}`,
             });
             setSelectedDocIds([]);
@@ -521,6 +532,19 @@ export default function App() {
         onDownloadPdf={handleDownloadPdf}
         onOpenFolder={handleOpenFolder}
       />
+      <ConfirmDialog
+        isOpen={Boolean(pendingNsuReset)}
+        title={`Resetar NSU de ${pendingNsuReset === 'CTE' ? 'CT-e' : 'NF-e'}`}
+        description={`Deseja resetar o contador de NSU de ${pendingNsuReset === 'CTE' ? 'CT-e' : 'NF-e'} para 000000000000000? Os documentos já salvos localmente serão preservados e a próxima consulta à SEFAZ buscará todo o histórico disponível desde o início.`}
+        confirmLabel="Resetar NSU"
+        variant="danger"
+        isBusy={isResettingNsu}
+        onConfirm={() => void handleConfirmResetNSU()}
+        onCancel={() => {
+          if (!isResettingNsu) setPendingNsuReset(null);
+        }}
+      />
+      <FeedbackModalHost />
         </>
       )}
     />

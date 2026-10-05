@@ -2,7 +2,7 @@ import { CombinedSefazQueryResult } from './types';
 import { compareNSU } from './nsu';
 
 export interface SyncResultPresentation {
-  type: 'success' | 'info' | 'error';
+  type: 'success' | 'info' | 'warning' | 'error';
   message: string;
 }
 
@@ -22,6 +22,8 @@ export function describeCombinedSyncResult(
     ? `${label}: ${item.documentsCount} documento(s), NSU ${item.ultNSU}`
     : `${label}: ${item.xMotivo}`;
   const hasTechnicalError = Boolean(result.nfe.error || result.cte.error);
+  const isRateLimited = result.nfe.cStat === 656 || result.cte.cStat === 656
+    || Boolean(result.nfe.rateLimitedUntil || result.cte.rateLimitedUntil);
   const isComplete = result.nfe.isComplete && result.cte.isComplete;
   const pending = [
     !result.nfe.isComplete && result.nfe.success && compareNSU(result.nfe.ultNSU, result.nfe.maxNSU) < 0
@@ -42,7 +44,7 @@ export function describeCombinedSyncResult(
   const pendingMessage = pending.length > 0 ? ` Pendente: ${pending.join(' · ')}.` : '';
 
   return {
-    type: hasTechnicalError ? 'error' : isComplete ? 'success' : 'info',
+    type: hasTechnicalError ? 'error' : isComplete ? 'success' : isRateLimited ? 'warning' : 'info',
     message: `${headline} ${summarize('NF-e', result.nfe)}. ${summarize('CT-e', result.cte)}.${pendingMessage}`,
   };
 }

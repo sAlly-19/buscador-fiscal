@@ -87,7 +87,7 @@ describe('apresentação do resultado de sincronização', () => {
 
     const presentation = describeCombinedSyncResult(combined);
 
-    expect(presentation.type).toBe('info');
+    expect(presentation.type).toBe('warning');
     expect(presentation.message).toMatch(/não concluída/i);
     expect(presentation.message).not.toMatch(/documentos pendentes/i);
     expect(presentation.message).not.toMatch(/Pendente:/i);
