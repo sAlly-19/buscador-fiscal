@@ -21,6 +21,8 @@ import { DownloadModal } from './components/DownloadModal';
 import { SefazProgressModal } from './components/SefazProgressModal';
 import { DocumentDetailsModal } from './components/DocumentDetailsModal';
 import { describeCombinedSyncResult, presentAfterRefresh } from '../packages/domain/sync-result';
+import { normalizePageSize, PageSize } from '../packages/domain/page-size';
+import { changePageSize } from './features/documents/page-size-controller';
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -327,6 +329,25 @@ export default function App() {
     }
   };
 
+  const handlePageSizeChange = async (size: PageSize) => {
+    try {
+      await changePageSize(
+        size,
+        async (value) => {
+          const updated = await window.fiscalApi.settings.update(value);
+          setSettings(updated);
+          return updated;
+        },
+        async (selectedSize) => {
+          setSelectedDocIds([]);
+          await searchLocalDocuments(undefined, 1, undefined, selectedSize);
+        },
+      );
+    } catch (err: any) {
+      setBannerAlert({ type: 'error', message: err.message || 'Falha ao alterar itens por página.' });
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-slate-100 font-sans antialiased text-slate-800">
       {/* 1. BARRA SUPERIOR (HEADER) */}
@@ -402,6 +423,7 @@ export default function App() {
             totalDocs={totalDocs}
             currentPage={currentPage}
             totalPages={totalPages}
+            pageSize={normalizePageSize(settings?.items_per_page)}
             selectedDocIds={selectedDocIds}
             loadingDocs={loadingDocs}
             onToggleSelectAll={toggleSelectAll}
@@ -410,6 +432,7 @@ export default function App() {
             onDownloadXml={handleDownloadXml}
             onDownloadPdf={handleDownloadPdf}
             onPageChange={(page) => searchLocalDocuments(undefined, page)}
+            onPageSizeChange={(size) => void handlePageSizeChange(size)}
           />
         </main>
       </div>

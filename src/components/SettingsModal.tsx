@@ -15,7 +15,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [defaultFolder, setDefaultFolder] = useState('');
   const [env, setEnv] = useState<SefazEnvironment>('homologation');
-  const [pageSize, setPageSize] = useState(50);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -30,7 +29,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (s) {
         setDefaultFolder(s.default_storage_path || '');
         setEnv(s.sefaz_environment || 'homologation');
-        setPageSize(s.items_per_page || 50);
       }
     } catch {
       // Ignora
@@ -54,7 +52,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const updated = await window.fiscalApi?.settings.update({
         default_storage_path: defaultFolder,
         sefaz_environment: env,
-        items_per_page: Number(pageSize),
       });
       if (updated) {
         onSaved(updated);
@@ -160,20 +157,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Documentos por Página:
-            </label>
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              className="border border-slate-300 rounded px-3 py-2 text-slate-800 font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              <option value={25}>25 documentos</option>
-              <option value={50}>50 documentos</option>
-              <option value={100}>100 documentos</option>
-            </select>
-          </div>
         </div>
 
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">

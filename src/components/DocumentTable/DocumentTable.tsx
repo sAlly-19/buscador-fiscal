@@ -3,12 +3,14 @@ import { FileSearch, LoaderCircle } from 'lucide-react';
 import { FiscalDocument } from '../../../packages/domain/types';
 import { DocumentRow } from './DocumentRow';
 import { Pagination } from './Pagination';
+import { PageSize } from '../../../packages/domain/page-size';
 
 interface Props {
   documents: FiscalDocument[];
   totalDocs: number;
   currentPage: number;
   totalPages: number;
+  pageSize: PageSize;
   selectedDocIds: number[];
   loadingDocs: boolean;
   onToggleSelectAll: () => void;
@@ -17,6 +19,7 @@ interface Props {
   onDownloadXml: (id: number) => void;
   onDownloadPdf: (id: number) => void;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (size: PageSize) => void;
 }
 
 export const DocumentTable: React.FC<Props> = (props) => (
@@ -37,6 +40,12 @@ export const DocumentTable: React.FC<Props> = (props) => (
         </table>
       )}
     </div>
-    <Pagination currentPage={props.currentPage} totalPages={props.totalPages} onPageChange={props.onPageChange} />
+    <Pagination
+      currentPage={props.currentPage}
+      totalPages={props.totalPages}
+      pageSize={props.pageSize}
+      onPageChange={props.onPageChange}
+      onPageSizeChange={props.onPageSizeChange}
+    />
   </section>
 );
