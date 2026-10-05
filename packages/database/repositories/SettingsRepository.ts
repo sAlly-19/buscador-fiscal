@@ -1,5 +1,6 @@
 import { DatabaseManager } from '../connection';
 import { AppSettings } from '../../domain/types';
+import { isPageSize, normalizePageSize } from '../../domain/page-size';
 
 export class SettingsRepository {
   constructor(private db: DatabaseManager) {}
@@ -13,13 +14,11 @@ export class SettingsRepository {
 
     const environment = map.get('sefaz_environment');
     const logLevel = map.get('log_level');
-    const parsedPageSize = Number(map.get('items_per_page') || 50);
+    const parsedPageSize = Number(map.get('items_per_page'));
     return {
       default_storage_path: map.get('default_storage_path') || '',
       sefaz_environment: environment === 'production' ? 'production' : 'homologation',
-      items_per_page: Number.isInteger(parsedPageSize) && parsedPageSize >= 10 && parsedPageSize <= 200
-        ? parsedPageSize
-        : 50,
+      items_per_page: normalizePageSize(parsedPageSize),
       log_level: logLevel === 'warn' || logLevel === 'error' || logLevel === 'debug' ? logLevel : 'info',
     };
   }
@@ -37,8 +36,8 @@ export class SettingsRepository {
     if (partial.log_level && !['info', 'warn', 'error', 'debug'].includes(partial.log_level)) {
       throw new Error('Nível de log inválido.');
     }
-    if (partial.items_per_page !== undefined && (!Number.isInteger(partial.items_per_page) || partial.items_per_page < 10 || partial.items_per_page > 200)) {
-      throw new Error('Itens por página deve ser um inteiro entre 10 e 200.');
+    if (partial.items_per_page !== undefined && !isPageSize(partial.items_per_page)) {
+      throw new Error('Itens por página deve ser 50, 100, 200, 500 ou 1000.');
     }
     if (partial.default_storage_path !== undefined && typeof partial.default_storage_path !== 'string') {
       throw new Error('Caminho de armazenamento inválido.');

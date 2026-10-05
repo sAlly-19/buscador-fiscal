@@ -547,5 +547,29 @@ describe('Integração do Banco de Dados SQLite (Fase 2)', () => {
       expect(updated.items_per_page).toBe(100);
       expect(updated.sefaz_environment).toBe('homologation'); // Preservado
     });
+
+    it('persiste todos os tamanhos de pagina suportados e rejeita os demais', () => {
+      for (const pageSize of [50, 100, 200, 500, 1000]) {
+        expect(settingsRepo.updateSettings({ items_per_page: pageSize }).items_per_page).toBe(pageSize);
+      }
+
+      for (const pageSize of [25, 0, 2000, 50.5]) {
+        expect(() => settingsRepo.updateSettings({ items_per_page: pageSize })).toThrow(/Itens por página/);
+      }
+    });
+
+    it('normaliza valor persistido invalido para 50', () => {
+      db.execute("UPDATE app_settings SET value = '25' WHERE key = 'items_per_page';");
+
+      expect(settingsRepo.getSettings().items_per_page).toBe(50);
+    });
+
+    it('aceita pagina de 1000 itens e normaliza requisicao invalida para 50', () => {
+      const company = companyRepo.create({ name: 'Empresa Teste', cnpj: '41.777.943/0001-02' });
+
+      expect(docRepo.search({ company_id: company.id, page_size: 1000 }).page_size).toBe(1000);
+      expect(docRepo.search({ company_id: company.id, page_size: 25 }).page_size).toBe(50);
+      expect(docRepo.search({ company_id: company.id, page_size: 50.5 }).page_size).toBe(50);
+    });
   });
 });

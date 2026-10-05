@@ -3,6 +3,7 @@ import { FiscalDocument, DocumentSearchFilters, PaginatedResult } from '../../do
 import { sanitizeAccessKey } from '../../domain/access-key';
 import { formatNSU } from '../../domain/nsu';
 import { deriveDocumentPresentation } from '../../domain/document-presentation';
+import { normalizePageSize } from '../../domain/page-size';
 
 export class DocumentRepository {
   constructor(private db: DatabaseManager) {}
@@ -220,7 +221,7 @@ export class DocumentRepository {
 
     // Paginação
     const page = Math.max(1, filters.page || 1);
-    const pageSize = Math.min(200, Math.max(1, Number(filters.page_size) || 50));
+    const pageSize = normalizePageSize(filters.page_size);
     const offset = (page - 1) * pageSize;
 
     const dataSql = `
