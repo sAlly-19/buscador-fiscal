@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw, StopCircle } from 'lucide-react';
+import { DialogShell } from './ui/DialogShell';
 
 interface SefazProgressModalProps {
   isOpen: boolean;
@@ -20,56 +21,62 @@ export const SefazProgressModal: React.FC<SefazProgressModalProps> = ({
   receivedCount,
   onCancel,
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl border border-slate-200 w-full max-w-md p-6 text-center animate-in fade-in zoom-in-95 duration-150 text-xs">
-        <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center mx-auto mb-4 text-sky-600">
-          <RefreshCw className="w-6 h-6 animate-spin" />
+    <DialogShell
+      isOpen={isOpen}
+      onClose={onCancel}
+      titleId="sefaz-progress-title"
+      size="md"
+      closeOnBackdrop={false}
+      closeOnEscape={false}
+    >
+      <div className="p-6 text-center text-xs">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">
+          <RefreshCw className="h-6 w-6 animate-spin" />
         </div>
 
-        <h3 className="text-base font-bold text-slate-800 mb-1">
+        <h3 id="sefaz-progress-title" className="mb-1 text-base font-bold text-[var(--text-primary)]">
           Consultando Distribuição SEFAZ...
         </h3>
-        <p className="text-slate-500 mb-4">
+        <p className="mb-4 text-[var(--text-muted)]">
           Conectando ao Web Service oficial do Ambiente Nacional via mTLS
         </p>
 
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-left space-y-2 mb-6">
+        <div className="mb-6 space-y-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-header)] p-3 text-left">
           <div className="flex justify-between">
-            <span className="text-slate-500 font-medium">Empresa:</span>
-            <span className="font-semibold text-slate-800">{companyName}</span>
+            <span className="font-medium text-[var(--text-muted)]">Empresa:</span>
+            <span className="font-semibold text-[var(--text-primary)]">{companyName}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500 font-medium">Serviço:</span>
-            <span className="font-semibold text-sky-700">{docType}</span>
+            <span className="font-medium text-[var(--text-muted)]">Serviço:</span>
+            <span className="font-semibold text-[var(--primary)]">{docType}</span>
           </div>
           {currentNSU && (
             <div className="flex justify-between">
-              <span className="text-slate-500 font-medium">NSU Atual:</span>
-              <span className="font-mono font-semibold text-slate-800">{currentNSU}</span>
+              <span className="font-medium text-[var(--text-muted)]">NSU Atual:</span>
+              <span className="font-mono font-semibold text-[var(--text-primary)]">{currentNSU}</span>
             </div>
           )}
           {receivedCount !== undefined && receivedCount > 0 && (
-            <div className="flex justify-between border-t border-slate-200 pt-1.5 mt-1.5">
-              <span className="text-slate-500 font-medium">Documentos Recebidos:</span>
-              <span className="font-bold text-emerald-700">{receivedCount}</span>
+            <div className="mt-1.5 flex justify-between border-t border-[var(--border-subtle)] pt-1.5">
+              <span className="font-medium text-[var(--text-muted)]">Documentos Recebidos:</span>
+              <span className="font-bold text-[var(--success)]">{receivedCount}</span>
             </div>
           )}
-          <div className="text-[11px] text-sky-800 bg-sky-50 p-2 rounded border border-sky-100 italic">
+          <div className="rounded border border-[var(--primary)]/20 bg-[var(--primary)]/10 p-2 text-[11px] italic text-[var(--primary)]">
             {message || 'Aguardando resposta do servidor da SEFAZ...'}
           </div>
         </div>
 
         <button
+          type="button"
           onClick={onCancel}
-          className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-md border border-rose-300 text-rose-700 hover:bg-rose-50 font-semibold transition"
+          className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[var(--danger)]/40 py-2.5 font-semibold text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
         >
-          <StopCircle className="w-4 h-4" />
+          <StopCircle className="h-4 w-4" />
           <span>CANCELAR CONSULTA</span>
         </button>
       </div>
-    </div>
+    </DialogShell>
   );
 };

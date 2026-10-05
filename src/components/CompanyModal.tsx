@@ -3,6 +3,7 @@ import { X, Building2, AlertCircle } from 'lucide-react';
 import { Company } from '../../packages/domain/types';
 import { formatCNPJ, isValidCNPJ, sanitizeCNPJ } from '../../packages/domain/cnpj';
 import { BRAZILIAN_UFS, getUfAcronym } from '../../packages/domain/uf';
+import { DialogShell } from './ui/DialogShell';
 
 interface CompanyModalProps {
   isOpen: boolean;
@@ -43,8 +44,6 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
     }
     setError(null);
   }, [editingCompany, isOpen]);
-
-  if (!isOpen) return null;
 
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -99,114 +98,121 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
-            <Building2 className="w-4 h-4 text-sky-600" />
-            <span>{editingCompany ? 'Editar Empresa' : 'Cadastrar Nova Empresa'}</span>
+    <DialogShell
+      isOpen={isOpen}
+      onClose={onClose}
+      titleId="company-modal-title"
+      size="md"
+    >
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-header)] px-5 py-3.5 select-none">
+        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+          <Building2 className="h-4 w-4 text-[var(--primary)]" />
+          <span id="company-modal-title">
+            {editingCompany ? 'Editar Empresa' : 'Cadastrar Nova Empresa'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fechar"
+          className="rounded p-1 text-[var(--text-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto p-5 text-xs">
+        {error && (
+          <div className="flex items-start gap-2 rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-[var(--danger)]">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition p-1 rounded hover:bg-slate-200/60"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        )}
+
+        <div>
+          <label className="mb-1 block font-semibold text-[var(--text-primary)]">
+            Razão Social / Nome da Empresa: <span className="text-[var(--danger)]">*</span>
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex: Minha Empresa Distribuidora Ltda"
+            className="w-full rounded border border-[var(--border-default)] bg-[var(--surface-input)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            autoFocus
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
-          {error && (
-            <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Razão Social / Nome da Empresa: <span className="text-rose-500">*</span>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <label className="mb-1 block font-semibold text-[var(--text-primary)]">
+              CNPJ: <span className="text-[var(--danger)]">*</span>
             </label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Minha Empresa Distribuidora Ltda"
-              className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
-              autoFocus
+              value={cnpj}
+              onChange={handleCnpjChange}
+              placeholder="00.000.000/0000-00"
+              className="w-full rounded border border-[var(--border-default)] bg-[var(--surface-input)] px-3 py-2 font-mono text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
             />
           </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="block font-semibold text-slate-700 mb-1">
-                CNPJ: <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={cnpj}
-                onChange={handleCnpjChange}
-                placeholder="00.000.000/0000-00"
-                className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                UF (Estado): <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={uf}
-                onChange={(e) => setUf(e.target.value)}
-                className="w-full border border-slate-300 rounded px-2 py-2 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
-              >
-                {BRAZILIAN_UFS.map((u) => (
-                  <option key={u.code} value={u.acronym}>
-                    {u.acronym}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Pasta Específica para Documentos (Opcional):
+            <label className="mb-1 block font-semibold text-[var(--text-primary)]">
+              UF (Estado): <span className="text-[var(--danger)]">*</span>
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={folderPath}
-                onChange={(e) => setFolderPath(e.target.value)}
-                placeholder="Padrão do sistema caso vazio"
-                className="flex-1 border border-slate-300 rounded px-3 py-2 text-slate-800 text-[11px] focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
-              />
-              <button
-                type="button"
-                onClick={handleChooseFolder}
-                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded font-semibold text-slate-700 transition"
-              >
-                Escolher
-              </button>
-            </div>
+            <select
+              value={uf}
+              onChange={(e) => setUf(e.target.value)}
+              className="w-full rounded border border-[var(--border-default)] bg-[var(--surface-input)] px-2 py-2 font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            >
+              {BRAZILIAN_UFS.map((u) => (
+                <option key={u.code} value={u.acronym}>
+                  {u.acronym}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
 
-          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+        <div>
+          <label className="mb-1 block font-semibold text-[var(--text-primary)]">
+            Pasta Específica para Documentos (Opcional):
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={folderPath}
+              onChange={(e) => setFolderPath(e.target.value)}
+              placeholder="Padrão do sistema caso vazio"
+              className="flex-1 rounded border border-[var(--border-default)] bg-[var(--surface-input)] px-3 py-2 text-[11px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            />
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-100 transition font-medium"
+              onClick={handleChooseFolder}
+              className="rounded border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-1.5 font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus:outline-none"
             >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-700 text-white font-semibold transition disabled:opacity-50"
-            >
-              {isSubmitting ? 'Salvando...' : 'Salvar Empresa'}
+              Escolher
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2 font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded bg-[var(--primary)] px-4 py-2 font-semibold text-white shadow-xs transition hover:bg-[var(--primary-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] disabled:opacity-50"
+          >
+            {isSubmitting ? 'Salvando...' : 'Salvar Empresa'}
+          </button>
+        </div>
+      </form>
+    </DialogShell>
   );
 };
