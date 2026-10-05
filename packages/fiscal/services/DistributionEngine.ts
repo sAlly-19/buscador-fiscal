@@ -136,7 +136,7 @@ export class DistributionEngine {
     let lastReason = '';
     let finalHistoryStatus = 'SUCCESS';
     let finalError: string | undefined;
-    const maxBatches = Math.max(1, Math.min(options?.maxBatches ?? 20, 100));
+    const maxBatches = Math.max(1, Math.min(options?.maxBatches ?? 100, 100));
 
     this.distStateRepo.updateStatus(companyId, docType, 'RUNNING', undefined, environment);
     try {

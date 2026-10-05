@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -10,7 +10,50 @@ import { DocumentRepository } from '../../packages/database/repositories/Documen
 import { SettingsRepository } from '../../packages/database/repositories/SettingsRepository';
 import { StorageService } from '../../packages/storage/StorageService';
 import { MockFiscalDistributionProvider } from '../../packages/fiscal/providers/MockFiscalDistributionProvider';
+import { DistributeOptions, IFiscalDistributionProvider } from '../../packages/fiscal/providers/IFiscalDistributionProvider';
 import { DistributionEngine } from '../../packages/fiscal/services/DistributionEngine';
+import { SefazRawResponse } from '../../packages/fiscal/types';
+import { formatNSU } from '../../packages/domain/nsu';
+
+class ManyBatchFiscalProvider implements IFiscalDistributionProvider {
+  public nfeCalls = 0;
+
+  public async distributeNFe(options: DistributeOptions): Promise<SefazRawResponse> {
+    this.nfeCalls += 1;
+    const next = Number(options.ultNSU) + 1;
+    const nsu = formatNSU(next);
+    const number = String(next).padStart(9, '0');
+    const code = String(next).padStart(8, '0');
+    const accessKey = `3526094177794300010255001${number}1${code}0`;
+    return {
+      tpAmb: '2',
+      verAplic: 'MANY_BATCHES_1.0',
+      cStat: 138,
+      xMotivo: 'Documento localizado',
+      dhResp: new Date().toISOString(),
+      ultNSU: nsu,
+      maxNSU: formatNSU(21),
+      docs: [{
+        nsu,
+        schema: 'resNFe_v1.01.xsd',
+        xmlContent: `<resNFe><chNFe>${accessKey}</chNFe><CNPJ>12345678000190</CNPJ><xNome>Fornecedor ${next}</xNome><dhEmi>2026-09-10T14:30:00-03:00</dhEmi><vNF>${next}.00</vNF><cSitNFe>1</cSitNFe></resNFe>`,
+      }],
+    };
+  }
+
+  public async distributeCTe(options: DistributeOptions): Promise<SefazRawResponse> {
+    return {
+      tpAmb: '2',
+      verAplic: 'MANY_BATCHES_1.0',
+      cStat: 137,
+      xMotivo: 'Nenhum documento localizado',
+      dhResp: new Date().toISOString(),
+      ultNSU: options.ultNSU,
+      maxNSU: options.ultNSU,
+      docs: [],
+    };
+  }
+}
 
 describe('Motor de Distribuição SEFAZ e Regras de NSU (Fases 6, 7, 8 e 9)', () => {
   let db: DatabaseManager;
@@ -141,6 +184,34 @@ describe('Motor de Distribuição SEFAZ e Regras de NSU (Fases 6, 7, 8 e 9)', ()
 
     const docs = docRepo.search({ company_id: companyId });
     expect(docs.total).toBe(3);
+  });
+
+  it('deve ultrapassar vinte lotes para concluir a sincronização padrão', async () => {
+    const provider = new ManyBatchFiscalProvider();
+    const manyBatchEngine = new DistributionEngine(
+      db,
+      companyRepo,
+      certRepo,
+      distStateRepo,
+      docRepo,
+      settingsRepo,
+      storageService,
+      provider
+    );
+    vi.useFakeTimers();
+    try {
+      const pending = manyBatchEngine.syncCompany(companyId, 'NFE');
+      await vi.runAllTimersAsync();
+      const result = await pending;
+
+      expect(provider.nfeCalls).toBe(21);
+      expect(result.documentsCount).toBe(21);
+      expect(result.ultNSU).toBe('000000000000021');
+      expect(result.maxNSU).toBe('000000000000021');
+      expect(result.isComplete).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('deve manter o NSU intacto caso ocorra falha de rede/SEFAZ', async () => {

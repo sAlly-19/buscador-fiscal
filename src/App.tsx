@@ -20,6 +20,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { DownloadModal } from './components/DownloadModal';
 import { SefazProgressModal } from './components/SefazProgressModal';
 import { DocumentDetailsModal } from './components/DocumentDetailsModal';
+import { describeCombinedSyncResult } from '../packages/domain/sync-result';
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -212,14 +213,7 @@ export default function App() {
       const result = await window.fiscalApi?.sefaz.consultDocuments(activeCompany.id);
 
       if (result) {
-        const summarize = (label: string, item: typeof result.nfe) => item.success
-          ? `${label}: ${item.documentsCount} documento(s), NSU ${item.ultNSU}`
-          : `${label}: ${item.xMotivo}`;
-        const hasTechnicalError = Boolean(result.nfe.error || result.cte.error);
-        setBannerAlert({
-          type: hasTechnicalError ? 'error' : result.success ? 'success' : 'info',
-          message: `Sincronização unificada concluída. ${summarize('NF-e', result.nfe)}. ${summarize('CT-e', result.cte)}.`,
-        });
+        setBannerAlert(describeCombinedSyncResult(result));
       } else {
         setBannerAlert({
           type: 'info',
