@@ -8,11 +8,17 @@ import { PendingFileWrite, StorageService } from '../../storage/StorageService';
 import { IFiscalDistributionProvider } from '../providers/IFiscalDistributionProvider';
 import { NFeParser } from '../nfe/NFeParser';
 import { CTeParser } from '../cte/CTeParser';
-import { DocumentType, SefazEnvironment, SefazQueryResult } from '../../domain/types';
+import { CombinedSefazQueryResult, DocumentType, SefazEnvironment, SefazQueryResult } from '../../domain/types';
 import { compareNSU } from '../../domain/nsu';
 import { ParsedFiscalDocumentInfo } from '../types';
 
 type ProgressCallback = (data: { message: string; currentNSU?: string; count?: number }) => void;
+type CombinedProgressCallback = (data: {
+  documentType: DocumentType;
+  message: string;
+  currentNSU?: string;
+  count?: number;
+}) => void;
 
 export class DistributionEngine {
   private nfeParser = new NFeParser();
@@ -34,6 +40,49 @@ export class DistributionEngine {
     for (const [key, controller] of this.activeQueries) {
       if (key.startsWith(`${companyId}:`) && (!docType || key.includes(`:${docType}:`))) controller.abort();
     }
+  }
+
+  public async syncCompanyDocuments(
+    companyId: number,
+    onProgress?: CombinedProgressCallback,
+    options?: { maxBatches?: number }
+  ): Promise<CombinedSefazQueryResult> {
+    const run = async (documentType: DocumentType): Promise<SefazQueryResult> => {
+      try {
+        return await this.syncCompany(
+          companyId,
+          documentType,
+          (progress) => onProgress?.({ documentType, ...progress }),
+          options
+        );
+      } catch (error) {
+        const environment = this.settingsRepo.getSettings().sefaz_environment;
+        const state = this.distStateRepo.getOrCreate(companyId, documentType, environment);
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          success: false,
+          cStat: state.last_cstat || 0,
+          xMotivo: message,
+          ultNSU: state.last_nsu,
+          maxNSU: state.max_nsu,
+          documentsCount: 0,
+          isComplete: false,
+          error: message,
+        };
+      }
+    };
+
+    const nfe = await run('NFE');
+    const cte = !nfe.success && nfe.cStat === 0 && /cancelada/i.test(nfe.xMotivo)
+      ? this.cancelledResult(companyId, 'CTE')
+      : await run('CTE');
+
+    return {
+      success: nfe.success && cte.success,
+      nfe,
+      cte,
+      documentsCount: nfe.documentsCount + cte.documentsCount,
+    };
   }
 
   public async syncCompany(
@@ -335,5 +384,19 @@ export class DistributionEngine {
   private formatDateTime(value: string): string {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('pt-BR');
+  }
+
+  private cancelledResult(companyId: number, documentType: DocumentType): SefazQueryResult {
+    const environment = this.settingsRepo.getSettings().sefaz_environment;
+    const state = this.distStateRepo.getOrCreate(companyId, documentType, environment);
+    return {
+      success: false,
+      cStat: 0,
+      xMotivo: 'Consulta cancelada pelo usuário antes desta etapa.',
+      ultNSU: state.last_nsu,
+      maxNSU: state.max_nsu,
+      documentsCount: 0,
+      isComplete: false,
+    };
   }
 }

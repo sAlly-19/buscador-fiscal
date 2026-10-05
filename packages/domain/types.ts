@@ -139,6 +139,13 @@ export interface SefazQueryResult {
   error?: string;
 }
 
+export interface CombinedSefazQueryResult {
+  success: boolean;
+  nfe: SefazQueryResult;
+  cte: SefazQueryResult;
+  documentsCount: number;
+}
+
 export interface DownloadBatchOptions {
   document_ids: number[];
   include_xml: boolean;

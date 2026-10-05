@@ -7,7 +7,7 @@ import {
   DocumentSearchFilters, 
   PaginatedResult, 
   AppSettings, 
-  SefazQueryResult, 
+  CombinedSefazQueryResult,
   DownloadBatchOptions, 
   DownloadBatchResult 
 } from '../../packages/domain/types';
@@ -35,12 +35,11 @@ export interface FiscalDesktopAPI {
     openFileFolder: (filePath: string) => Promise<boolean>;
   };
   sefaz: {
-    consultNFe: (companyId: number) => Promise<SefazQueryResult>;
-    consultCTe: (companyId: number) => Promise<SefazQueryResult>;
+    consultDocuments: (companyId: number) => Promise<CombinedSefazQueryResult>;
     getStatus: (companyId: number) => Promise<{ nfeLastNSU: string; cteLastNSU: string; isRunning: boolean }>;
     cancelQuery: (companyId: number, docType?: 'NFE' | 'CTE') => Promise<boolean>;
     resetNSU: (companyId: number, docType: 'NFE' | 'CTE') => Promise<boolean>;
-    onProgress: (callback: (data: { companyId: number; message: string; currentNSU?: string; count?: number }) => void) => () => void;
+    onProgress: (callback: (data: { companyId: number; documentType: 'NFE' | 'CTE'; message: string; currentNSU?: string; count?: number }) => void) => () => void;
   };
   settings: {
     get: () => Promise<AppSettings>;

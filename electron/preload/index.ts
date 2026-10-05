@@ -35,12 +35,11 @@ contextBridge.exposeInMainWorld('fiscalApi', {
       ipcRenderer.invoke('documents:openFileFolder', filePath),
   },
   sefaz: {
-    consultNFe: (companyId: number) => ipcRenderer.invoke('sefaz:consultNFe', companyId),
-    consultCTe: (companyId: number) => ipcRenderer.invoke('sefaz:consultCTe', companyId),
+    consultDocuments: (companyId: number) => ipcRenderer.invoke('sefaz:consultDocuments', companyId),
     getStatus: (companyId: number) => ipcRenderer.invoke('sefaz:getStatus', companyId),
     cancelQuery: (companyId: number, docType?: 'NFE' | 'CTE') => ipcRenderer.invoke('sefaz:cancelQuery', companyId, docType),
     resetNSU: (companyId: number, docType: 'NFE' | 'CTE') => ipcRenderer.invoke('sefaz:resetNSU', companyId, docType),
-    onProgress: (callback: (data: { companyId: number; message: string; currentNSU?: string; count?: number }) => void) => {
+    onProgress: (callback: (data: { companyId: number; documentType: 'NFE' | 'CTE'; message: string; currentNSU?: string; count?: number }) => void) => {
       const subscription = (_event: IpcRendererEvent, data: any) => callback(data);
       ipcRenderer.on('sefaz:progress', subscription);
       return () => {

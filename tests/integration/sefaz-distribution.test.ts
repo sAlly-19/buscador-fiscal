@@ -195,4 +195,21 @@ describe('Motor de Distribuição SEFAZ e Regras de NSU (Fases 6, 7, 8 e 9)', ()
     expect(nfeState.last_nsu).toBe('000000000000002');
     expect(cteState.last_nsu).toBe('000000000000001');
   });
+
+  it('deve sincronizar NF-e e CT-e em uma única ação e continuar quando um serviço estiver em cooldown', async () => {
+    mockProvider.setRateLimitNext(true);
+    const progressTypes = new Set<string>();
+
+    const result = await engine.syncCompanyDocuments(
+      companyId,
+      (progress) => progressTypes.add(progress.documentType),
+      { maxBatches: 1 }
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.nfe.cStat).toBe(656);
+    expect(result.cte.success).toBe(true);
+    expect(result.cte.documentsCount).toBe(1);
+    expect(progressTypes).toEqual(new Set(['NFE', 'CTE']));
+  });
 });

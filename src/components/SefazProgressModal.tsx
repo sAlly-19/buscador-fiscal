@@ -4,7 +4,7 @@ import { RefreshCw, StopCircle } from 'lucide-react';
 interface SefazProgressModalProps {
   isOpen: boolean;
   companyName: string;
-  docType: 'NF-e' | 'CT-e';
+  docType: string;
   currentNSU?: string;
   message: string;
   receivedCount?: number;

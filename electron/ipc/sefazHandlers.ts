@@ -9,16 +9,13 @@ function parseDocumentType(value: unknown): DocumentType {
 }
 
 export function registerSefazHandlers(services: ApplicationContext, getMainWindow: () => BrowserWindow | null): void {
-  const consult = (docType: DocumentType, rawId: unknown) => {
+  registerSecureHandler('sefaz:consultDocuments', getMainWindow, (_event, rawId) => {
     const companyId = requirePositiveInteger(rawId, 'ID da empresa');
-    return services.distributionEngine.syncCompany(companyId, docType, (progress) => {
+    return services.distributionEngine.syncCompanyDocuments(companyId, (progress) => {
       const win = getMainWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('sefaz:progress', { companyId, documentType: docType, ...progress });
+      if (win && !win.isDestroyed()) win.webContents.send('sefaz:progress', { companyId, ...progress });
     });
-  };
-
-  registerSecureHandler('sefaz:consultNFe', getMainWindow, (_event, id) => consult('NFE', id));
-  registerSecureHandler('sefaz:consultCTe', getMainWindow, (_event, id) => consult('CTE', id));
+  });
   registerSecureHandler('sefaz:getStatus', getMainWindow, (_event, id) => {
     const companyId = requirePositiveInteger(id, 'ID da empresa');
     if (!services.companyService.getById(companyId)) throw new Error('Empresa não encontrada.');

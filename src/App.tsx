@@ -173,7 +173,7 @@ export default function App() {
   }, [activeCompany, selectedDocTypes, startDate, endDate, searchQuery, settings]);
 
   // Consulta SEFAZ Real
-  const handleConsultSefaz = async (type: 'NF-e' | 'CT-e') => {
+  const handleConsultSefaz = async () => {
     if (!activeCompany) return;
     if (!companyCert) {
       setBannerAlert({
@@ -191,7 +191,7 @@ export default function App() {
       return;
     }
 
-    setActiveConsultType(type);
+    setActiveConsultType('NF-e');
     setIsSefazModalOpen(true);
     setSefazProgressMsg('Iniciando comunicação com a SEFAZ...');
     setSefazProgressNSU('');
@@ -200,26 +200,30 @@ export default function App() {
     // Escuta progresso do main process
     const unsubscribe = window.fiscalApi?.sefaz.onProgress((data) => {
       if (data.companyId === activeCompany.id) {
-        setSefazProgressMsg(data.message);
+        const stage = data.documentType === 'NFE' ? 'NF-e' : 'CT-e';
+        setActiveConsultType(stage);
+        setSefazProgressMsg(`${stage}: ${data.message}`);
         if (data.currentNSU) setSefazProgressNSU(data.currentNSU);
         if (data.count !== undefined) setSefazReceivedCount(data.count);
       }
     });
 
     try {
-      const result = type === 'NF-e'
-        ? await window.fiscalApi?.sefaz.consultNFe(activeCompany.id)
-        : await window.fiscalApi?.sefaz.consultCTe(activeCompany.id);
+      const result = await window.fiscalApi?.sefaz.consultDocuments(activeCompany.id);
 
-      if (result?.success) {
+      if (result) {
+        const summarize = (label: string, item: typeof result.nfe) => item.success
+          ? `${label}: ${item.documentsCount} documento(s), NSU ${item.ultNSU}`
+          : `${label}: ${item.xMotivo}`;
+        const hasTechnicalError = Boolean(result.nfe.error || result.cte.error);
         setBannerAlert({
-          type: 'success',
-          message: `Consulta SEFAZ concluída: ${result.documentsCount} documento(s) recebido(s). NSU Atualizado para ${result.ultNSU}.`,
+          type: hasTechnicalError ? 'error' : result.success ? 'success' : 'info',
+          message: `Sincronização unificada concluída. ${summarize('NF-e', result.nfe)}. ${summarize('CT-e', result.cte)}.`,
         });
       } else {
         setBannerAlert({
           type: 'info',
-          message: result?.xMotivo || 'Consulta finalizada.',
+          message: 'Consulta finalizada sem resultado.',
         });
       }
     } catch (err: any) {
@@ -237,7 +241,7 @@ export default function App() {
 
   const handleCancelSefaz = async () => {
     if (activeCompany) {
-      await window.fiscalApi?.sefaz.cancelQuery(activeCompany.id, activeConsultType === 'NF-e' ? 'NFE' : 'CTE');
+      await window.fiscalApi?.sefaz.cancelQuery(activeCompany.id);
       setIsSefazModalOpen(false);
       setBannerAlert({ type: 'info', message: 'Solicitação de cancelamento enviada à SEFAZ.' });
     }
@@ -457,7 +461,7 @@ export default function App() {
       <SefazProgressModal
         isOpen={isSefazModalOpen}
         companyName={activeCompany?.name || ''}
-        docType={activeConsultType}
+        docType={`NF-e e CT-e · etapa ${activeConsultType}`}
         currentNSU={sefazProgressNSU}
         message={sefazProgressMsg}
         receivedCount={sefazReceivedCount}
