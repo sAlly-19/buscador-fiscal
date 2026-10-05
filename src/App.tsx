@@ -272,8 +272,12 @@ export default function App() {
 
   // Downloads Individuais
   const handleDownloadXml = async (docId: number) => {
+    if (!activeCompany) return;
     try {
-      const res = await window.fiscalApi?.documents.downloadXml(docId);
+      const res = await window.fiscalApi?.documents.downloadXml({
+        company_id: activeCompany.id,
+        document_id: docId,
+      });
       if (res?.success) {
         setBannerAlert({ type: 'success', message: `XML exportado com sucesso para: ${res.filePath}` });
       } else if (res?.error && res.error !== 'Operação cancelada.') {
@@ -285,8 +289,12 @@ export default function App() {
   };
 
   const handleDownloadPdf = async (docId: number) => {
+    if (!activeCompany) return;
     try {
-      const res = await window.fiscalApi?.documents.downloadPdf(docId);
+      const res = await window.fiscalApi?.documents.downloadPdf({
+        company_id: activeCompany.id,
+        document_id: docId,
+      });
       if (res?.success) {
         setBannerAlert({ type: 'success', message: `PDF exportado com sucesso para: ${res.filePath}` });
       } else if (res?.error && res.error !== 'Operação cancelada.') {
@@ -298,7 +306,11 @@ export default function App() {
   };
 
   const handleOpenFolder = async (filePath: string) => {
-    await window.fiscalApi?.documents.openFileFolder(filePath);
+    if (!activeCompany) return;
+    await window.fiscalApi?.documents.openFileFolder({
+      company_id: activeCompany.id,
+      file_path: filePath,
+    });
   };
 
   const toggleSelectDoc = (id: number) => {
@@ -443,20 +455,23 @@ export default function App() {
         }}
       />
 
-      <DownloadModal
-        isOpen={isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
-        selectedCount={selectedDocIds.length}
-        selectedDocIds={selectedDocIds}
-        defaultFolder={settings?.default_storage_path}
-        onSuccess={(res: DownloadBatchResult) => {
-          setBannerAlert({
-            type: 'success',
-            message: `Arquivo ZIP com ${res.copied_files_count} documento(s) gerado com sucesso em: ${res.zip_path}`,
-          });
-          setSelectedDocIds([]);
-        }}
-      />
+      {activeCompany && (
+        <DownloadModal
+          isOpen={isDownloadModalOpen}
+          onClose={() => setIsDownloadModalOpen(false)}
+          companyId={activeCompany.id}
+          selectedCount={selectedDocIds.length}
+          selectedDocIds={selectedDocIds}
+          defaultFolder={settings?.default_storage_path}
+          onSuccess={(res: DownloadBatchResult) => {
+            setBannerAlert({
+              type: 'success',
+              message: `Arquivo ZIP com ${res.copied_files_count} documento(s) gerado com sucesso em: ${res.zip_path}`,
+            });
+            setSelectedDocIds([]);
+          }}
+        />
+      )}
 
       <SefazProgressModal
         isOpen={isSefazModalOpen}

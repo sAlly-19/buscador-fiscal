@@ -2,7 +2,10 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { 
   CreateCompanyDTO, 
   UpdateCompanyDTO, 
+  DocumentDownloadRequest,
+  DocumentReference,
   DocumentSearchFilters, 
+  DocumentStoragePathRequest,
   AppSettings, 
   DownloadBatchOptions 
 } from '../../packages/domain/types';
@@ -24,15 +27,15 @@ contextBridge.exposeInMainWorld('fiscalApi', {
   },
   documents: {
     search: (filters: DocumentSearchFilters) => ipcRenderer.invoke('documents:search', filters),
-    getById: (id: number) => ipcRenderer.invoke('documents:getById', id),
-    downloadXml: (id: number, destFolder?: string) => 
-      ipcRenderer.invoke('documents:downloadXml', id, destFolder),
-    downloadPdf: (id: number, destFolder?: string) => 
-      ipcRenderer.invoke('documents:downloadPdf', id, destFolder),
+    getById: (request: DocumentReference) => ipcRenderer.invoke('documents:getById', request),
+    downloadXml: (request: DocumentDownloadRequest) =>
+      ipcRenderer.invoke('documents:downloadXml', request),
+    downloadPdf: (request: DocumentDownloadRequest) =>
+      ipcRenderer.invoke('documents:downloadPdf', request),
     downloadBatch: (options: DownloadBatchOptions) => 
       ipcRenderer.invoke('documents:downloadBatch', options),
-    openFileFolder: (filePath: string) => 
-      ipcRenderer.invoke('documents:openFileFolder', filePath),
+    openFileFolder: (request: DocumentStoragePathRequest) =>
+      ipcRenderer.invoke('documents:openFileFolder', request),
   },
   sefaz: {
     consultDocuments: (companyId: number) => ipcRenderer.invoke('sefaz:consultDocuments', companyId),

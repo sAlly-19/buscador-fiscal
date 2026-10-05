@@ -4,7 +4,10 @@ import {
   UpdateCompanyDTO, 
   CertificateInfo, 
   FiscalDocument, 
+  DocumentDownloadRequest,
+  DocumentReference,
   DocumentSearchFilters, 
+  DocumentStoragePathRequest,
   PaginatedResult, 
   AppSettings, 
   CombinedSefazQueryResult,
@@ -28,11 +31,11 @@ export interface FiscalDesktopAPI {
   };
   documents: {
     search: (filters: DocumentSearchFilters) => Promise<PaginatedResult<FiscalDocument>>;
-    getById: (id: number) => Promise<FiscalDocument | null>;
-    downloadXml: (id: number, destFolder?: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
-    downloadPdf: (id: number, destFolder?: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+    getById: (request: DocumentReference) => Promise<FiscalDocument | null>;
+    downloadXml: (request: DocumentDownloadRequest) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+    downloadPdf: (request: DocumentDownloadRequest) => Promise<{ success: boolean; filePath?: string; error?: string }>;
     downloadBatch: (options: DownloadBatchOptions) => Promise<DownloadBatchResult>;
-    openFileFolder: (filePath: string) => Promise<boolean>;
+    openFileFolder: (request: DocumentStoragePathRequest) => Promise<boolean>;
   };
   sefaz: {
     consultDocuments: (companyId: number) => Promise<CombinedSefazQueryResult>;

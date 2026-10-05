@@ -5,6 +5,7 @@ import { DownloadBatchResult } from '../../packages/domain/types';
 interface DownloadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  companyId: number;
   selectedCount: number;
   selectedDocIds: number[];
   defaultFolder?: string;
@@ -14,6 +15,7 @@ interface DownloadModalProps {
 export const DownloadModal: React.FC<DownloadModalProps> = ({
   isOpen,
   onClose,
+  companyId,
   selectedCount,
   selectedDocIds,
   defaultFolder,
@@ -53,6 +55,7 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
 
     try {
       const result = await window.fiscalApi?.documents.downloadBatch({
+        company_id: companyId,
         document_ids: selectedDocIds,
         include_xml: includeXml,
         include_pdf: includePdf,
