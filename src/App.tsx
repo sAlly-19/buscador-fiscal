@@ -11,8 +11,7 @@ import { AppShell } from './components/layout/AppShell';
 import { AppHeader } from './components/layout/AppHeader';
 import { FeedbackModalHost } from './components/feedback/FeedbackModalHost';
 import { ConfirmDialog } from './components/feedback/ConfirmDialog';
-import { CompanyList } from './components/Sidebar/CompanyList';
-import { CertificateCard } from './components/Sidebar/CertificateCard';
+import { CompanySidebar } from './components/layout/CompanySidebar';
 import { FilterBar } from './components/FilterBar';
 import { DocumentTable } from './components/DocumentTable/DocumentTable';
 import { FooterDownloadBar } from './components/FooterDownloadBar';
@@ -381,38 +380,32 @@ export default function App() {
         />
       )}
       sidebar={(
-        <aside className="flex w-72 shrink-0 select-none flex-col justify-between border-r border-[var(--border-subtle)] bg-[var(--surface-sidebar)]">
-          <CompanyList
-            companies={companies}
-            activeCompany={activeCompany}
-            onSelectCompany={handleSelectCompany}
-            onNewCompany={() => {
-              setEditingCompany(null);
-              setIsCompanyModalOpen(true);
-            }}
-            onFilterNFeOnly={(id) => {
-              const types = { nfe: true, cte: false };
-              setSelectedDocTypes(types);
-              searchLocalDocuments(id, 1, types);
-            }}
-            onFilterCTeOnly={(id) => {
-              const types = { nfe: false, cte: true };
-              setSelectedDocTypes(types);
-              searchLocalDocuments(id, 1, types);
-            }}
-            onFilterAllTypes={(id) => {
-              const types = { nfe: true, cte: true };
-              setSelectedDocTypes(types);
-              searchLocalDocuments(id, 1, types);
-            }}
-          />
-
-          <CertificateCard
-            activeCompany={activeCompany}
-            companyCert={companyCert}
-            onOpenCertModal={() => setIsCertModalOpen(true)}
-          />
-        </aside>
+        <CompanySidebar
+          companies={companies}
+          activeCompany={activeCompany}
+          companyCert={companyCert}
+          onSelectCompany={handleSelectCompany}
+          onNewCompany={() => {
+            setEditingCompany(null);
+            setIsCompanyModalOpen(true);
+          }}
+          onFilterNFeOnly={(id) => {
+            const types = { nfe: true, cte: false };
+            setSelectedDocTypes(types);
+            searchLocalDocuments(id, 1, types);
+          }}
+          onFilterCTeOnly={(id) => {
+            const types = { nfe: false, cte: true };
+            setSelectedDocTypes(types);
+            searchLocalDocuments(id, 1, types);
+          }}
+          onFilterAllTypes={(id) => {
+            const types = { nfe: true, cte: true };
+            setSelectedDocTypes(types);
+            searchLocalDocuments(id, 1, types);
+          }}
+          onOpenCertModal={() => setIsCertModalOpen(true)}
+        />
       )}
       toolbar={(
         <>

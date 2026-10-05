@@ -2,27 +2,62 @@ import React from 'react';
 import { KeyRound, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { CertificateInfo, Company } from '../../../packages/domain/types';
 
-interface Props {
+export interface CertificateCardProps {
   activeCompany: Company | null;
   companyCert: CertificateInfo | null;
   onOpenCertModal: () => void;
 }
 
-export const CertificateCard: React.FC<Props> = ({ activeCompany, companyCert, onOpenCertModal }) => {
-  const valid = companyCert && !companyCert.is_expired;
+export const CertificateCard: React.FC<CertificateCardProps> = ({
+  activeCompany,
+  companyCert,
+  onOpenCertModal,
+}) => {
+  const isValid = companyCert && !companyCert.is_expired;
+
   return (
-    <div className="m-3 p-3 border rounded-lg bg-slate-50 text-xs">
-      <div className="font-bold flex items-center gap-2 mb-2"><KeyRound className="w-4 h-4" />Certificado digital</div>
-      {!activeCompany ? <p className="text-slate-500">Selecione uma empresa.</p> : companyCert ? (
+    <div className="m-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] p-3 text-xs shadow-xs">
+      <div className="mb-2 flex items-center gap-2 font-bold text-[var(--text-primary)]">
+        <KeyRound className="h-4 w-4 text-[var(--primary)]" />
+        <span>Certificado digital</span>
+      </div>
+
+      {!activeCompany ? (
+        <p className="text-[var(--text-muted)]">Selecione uma empresa.</p>
+      ) : companyCert ? (
         <div className="space-y-1">
-          <p className={`flex items-center gap-1 font-semibold ${valid ? 'text-emerald-700' : 'text-rose-700'}`}>
-            {valid ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}{valid ? 'Válido' : 'Expirado'}
+          <p
+            className={`flex items-center gap-1 font-semibold ${
+              isValid ? 'text-[var(--success)]' : 'text-[var(--danger)]'
+            }`}
+          >
+            {isValid ? (
+              <ShieldCheck className="h-4 w-4" />
+            ) : (
+              <ShieldAlert className="h-4 w-4" />
+            )}
+            <span>{isValid ? 'Válido' : 'Expirado'}</span>
           </p>
-          <p className="truncate" title={companyCert.subject}>{companyCert.subject}</p>
-          <p className="text-slate-500">Validade: {new Date(companyCert.valid_to).toLocaleDateString('pt-BR')}</p>
+          <p
+            className="truncate font-mono text-[11px] text-[var(--text-secondary)]"
+            title={companyCert.subject}
+          >
+            {companyCert.subject}
+          </p>
+          <p className="text-[11px] text-[var(--text-muted)]">
+            Validade: {new Date(companyCert.valid_to).toLocaleDateString('pt-BR')}
+          </p>
         </div>
-      ) : <p className="text-amber-700">Nenhum certificado associado.</p>}
-      <button type="button" disabled={!activeCompany} onClick={onOpenCertModal} className="w-full mt-3 border rounded py-2 bg-white font-semibold disabled:opacity-40">
+      ) : (
+        <p className="text-[var(--warning)]">Nenhum certificado associado.</p>
+      )}
+
+      <button
+        type="button"
+        disabled={!activeCompany}
+        onClick={onOpenCertModal}
+        className="mt-3 w-full rounded border border-[var(--border-default)] bg-[var(--surface-panel)] py-1.5 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-40"
+      >
         {companyCert ? 'Alterar certificado' : 'Associar certificado'}
       </button>
     </div>
