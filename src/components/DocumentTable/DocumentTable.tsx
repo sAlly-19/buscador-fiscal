@@ -34,7 +34,7 @@ export const DocumentTable: React.FC<Props> = (props) => (
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-slate-100 text-[10px] uppercase text-slate-500 z-10"><tr>
             <th className="px-3 py-2 text-left"><input type="checkbox" checked={props.documents.length > 0 && props.selectedDocIds.length === props.documents.length} onChange={props.onToggleSelectAll} aria-label="Selecionar página" /></th>
-            <th className="px-3 py-2 text-left">Tipo</th><th className="px-3 py-2 text-left">Documento</th><th className="px-3 py-2 text-left">Emitente</th><th className="px-3 py-2 text-left">Emissão</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-left">Situação</th><th className="px-3 py-2 text-right">Ações</th>
+            <th className="px-3 py-2 text-left">Tipo</th><th className="px-3 py-2 text-left">Documento</th><th className="px-3 py-2 text-left">Emitente</th><th className="px-3 py-2 text-left">Data</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-left">Situação</th><th className="px-3 py-2 text-right">Ações</th>
           </tr></thead>
           <tbody>{props.documents.map((doc) => <DocumentRow key={doc.id} document={doc} selected={props.selectedDocIds.includes(doc.id)} onToggle={() => props.onToggleSelectDoc(doc.id)} onViewDetails={() => props.onViewDetails(doc)} onDownloadXml={() => props.onDownloadXml(doc.id)} onDownloadPdf={() => props.onDownloadPdf(doc.id)} />)}</tbody>
         </table>

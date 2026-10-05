@@ -12,6 +12,8 @@ import {
 } from '../../packages/domain/types';
 import { ApplicationContext } from '../services';
 import { isApprovedFolder, registerSecureHandler, requirePositiveInteger, requireString } from './security';
+import { normalizePageSize } from '../../packages/domain/page-size';
+import { isOwnIssuedNfeEvent } from '../../packages/domain/document-presentation';
 
 async function resolveDestination(
   requested: unknown,
@@ -54,7 +56,7 @@ function parseFilters(value: unknown): DocumentSearchFilters {
     xml_status: raw.xml_status === 'XML_DISPONIVEL' || raw.xml_status === 'XML_INDISPONIVEL' ? raw.xml_status : undefined,
     pdf_status: raw.pdf_status === 'PDF_DISPONIVEL' || raw.pdf_status === 'PDF_INDISPONIVEL' ? raw.pdf_status : undefined,
     page: Number.isSafeInteger(raw.page) ? Math.max(1, Number(raw.page)) : 1,
-    page_size: Number.isSafeInteger(raw.page_size) ? Math.min(200, Math.max(1, Number(raw.page_size))) : 50,
+    page_size: normalizePageSize(raw.page_size),
   };
 }
 
@@ -94,7 +96,14 @@ export function registerDocumentHandlers(services: ApplicationContext, getMainWi
     const reference = parseDocumentReference(value, services);
     const raw = value as Partial<DocumentDownloadRequest>;
     const doc = services.docRepo.findById(reference.document_id, reference.company_id);
-    const source = format === 'XML' ? doc?.xml_path : doc?.pdf_path;
+    const company = services.companyService.getById(reference.company_id);
+    const isEventOnlyPdf = format === 'PDF' && Boolean(doc && company && isOwnIssuedNfeEvent(
+      doc.document_type,
+      doc.schema_type,
+      doc.access_key,
+      company.cnpj,
+    ));
+    const source = isEventOnlyPdf ? undefined : format === 'XML' ? doc?.xml_path : doc?.pdf_path;
     if (!doc || !source || !fs.existsSync(source)) {
       return { success: false, error: `Arquivo ${format} não está disponível localmente.` };
     }
@@ -127,17 +136,23 @@ export function registerDocumentHandlers(services: ApplicationContext, getMainWi
     const destination = await resolveDestination(raw.destination_folder, 'Selecione a Pasta para Salvar o ZIP',
       services.settingsRepo.getSettings().default_storage_path, getMainWindow);
     if (!destination) return { success: false, error: 'Operação cancelada.', copied_files_count: 0 };
+    const company = services.companyService.getById(companyId);
     const files = docs.flatMap((doc) => {
       const result = [];
       if (raw.include_xml && doc.xml_path && fs.existsSync(doc.xml_path)) {
         result.push({ sourcePath: doc.xml_path, docType: doc.document_type, accessKey: doc.access_key, format: 'XML' as const });
       }
-      if (raw.include_pdf && doc.pdf_path && fs.existsSync(doc.pdf_path)) {
+      const isEventOnly = Boolean(company && isOwnIssuedNfeEvent(
+        doc.document_type,
+        doc.schema_type,
+        doc.access_key,
+        company.cnpj,
+      ));
+      if (raw.include_pdf && !isEventOnly && doc.pdf_path && fs.existsSync(doc.pdf_path)) {
         result.push({ sourcePath: doc.pdf_path, docType: doc.document_type, accessKey: doc.access_key, format: 'PDF' as const });
       }
       return result;
     });
-    const company = services.companyService.getById(companyId);
     const zip = await services.zipService.createBatchZip(company?.name || 'Empresa', destination, files);
     services.db.execute(
       `INSERT INTO download_history (document_id, download_type, destination_path, success)

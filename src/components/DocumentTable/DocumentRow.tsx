@@ -31,7 +31,10 @@ export const DocumentRow: React.FC<Props> = ({ document: doc, selected, onToggle
     <td className="px-3 py-2 font-semibold">{displayType}</td>
     <td className="px-3 py-2"><div className="font-medium">{doc.document_number || '—'}</div><div className="text-slate-400">Série {doc.series || '—'}</div></td>
     <td className="px-3 py-2 max-w-52"><div className="truncate" title={doc.issuer_name}>{doc.issuer_name || '—'}</div><div className="text-slate-400 font-mono">{doc.issuer_cnpj || ''}</div></td>
-    <td className="px-3 py-2 whitespace-nowrap">{displayDate(doc.issue_date)}</td>
+    <td className="px-3 py-2 whitespace-nowrap">
+      <div>{displayDate(doc.issue_date)}</div>
+      {doc.date_kind === 'EVENT' && <div className="text-[10px] text-sky-600">Evento</div>}
+    </td>
     <td className="px-3 py-2 text-right whitespace-nowrap">{displayTotal}</td>
     <td className="px-3 py-2">{isEventOnly ? (
       <span className="rounded-full px-2 py-1 text-[10px] bg-sky-100 text-sky-700">Dados parciais</span>

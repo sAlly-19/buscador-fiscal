@@ -5,6 +5,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DocumentRow } from '../../src/components/DocumentTable/DocumentRow';
 import { DocumentDetailsModal } from '../../src/components/DocumentDetailsModal';
+import { DocumentTable } from '../../src/components/DocumentTable/DocumentTable';
 import type { FiscalDocument } from '../../packages/domain/types';
 
 function fiscalDocument(overrides: Partial<FiscalDocument> = {}): FiscalDocument {
@@ -56,8 +57,33 @@ describe('apresentacao visual de documentos parciais', () => {
     expect(screen.getByText('Dados parciais')).toBeInTheDocument();
     expect(screen.getByText('SUPERMERCADO PRECO BAIXO TODO DIA')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('Evento')).toBeInTheDocument();
     expect(screen.getByTitle('Baixar XML do evento')).toBeEnabled();
     expect(screen.getByTitle('PDF indisponível para dados parciais')).toBeDisabled();
+  });
+
+  it('usa cabecalho de data neutro quando a tabela pode conter datas de evento', () => {
+    render(
+      <DocumentTable
+        documents={[fiscalDocument()]}
+        totalDocs={1}
+        currentPage={1}
+        totalPages={1}
+        pageSize={50}
+        selectedDocIds={[]}
+        loadingDocs={false}
+        onToggleSelectAll={vi.fn()}
+        onToggleSelectDoc={vi.fn()}
+        onViewDetails={vi.fn()}
+        onDownloadXml={vi.fn()}
+        onDownloadPdf={vi.fn()}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('columnheader', { name: 'Data' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Emissão' })).not.toBeInTheDocument();
   });
 
   it('explica no detalhe que a data e o XML pertencem ao evento', () => {
