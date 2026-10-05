@@ -1,9 +1,92 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
-    @apply antialiased font-sans text-slate-800 bg-slate-100;
+  :root {
+    color-scheme: dark;
   }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply m-0 antialiased font-sans;
+    background: #09090b;
+  }
+
+  button, input, select, textarea {
+    font: inherit;
+  }
+}
+
+.theme-dark {
+  color-scheme: dark;
+  --surface-app: #09090b;
+  --surface-header: #111114;
+  --surface-sidebar: #0f0f12;
+  --surface-workspace: #0c0c0f;
+  --surface-panel: #151518;
+  --surface-card: #18181b;
+  --surface-inset: #101014;
+  --surface-input: #111114;
+  --surface-hover: #202024;
+  --surface-selected: #172554;
+  --surface-overlay: rgb(0 0 0 / 0.72);
+  --border-subtle: #242428;
+  --border-default: #303036;
+  --border-strong: #45454d;
+  --text-primary: #f4f4f5;
+  --text-secondary: #b4b4bd;
+  --text-muted: #7f7f89;
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fb7185;
+}
+
+.theme-light {
+  color-scheme: light;
+  --surface-app: #e9edf3;
+  --surface-header: #ffffff;
+  --surface-sidebar: #f8fafc;
+  --surface-workspace: #eef2f7;
+  --surface-panel: #ffffff;
+  --surface-card: #ffffff;
+  --surface-inset: #f1f5f9;
+  --surface-input: #ffffff;
+  --surface-hover: #e8edf4;
+  --surface-selected: #dbeafe;
+  --surface-overlay: rgb(15 23 42 / 0.55);
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-strong: #94a3b8;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #e11d48;
+}
+
+.theme-dark input,
+.theme-dark select,
+.theme-dark textarea,
+.theme-light input,
+.theme-light select,
+.theme-light textarea {
+  border-color: var(--border-default);
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+
+.theme-dark input::placeholder,
+.theme-dark textarea::placeholder,
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: var(--text-muted);
 }
 
 /* Custom scrollbars for clean desktop appearance */
@@ -13,14 +96,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--surface-inset, #18181b);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border-strong, #52525b);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-muted, #71717a);
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, RotateCcw, Search } from 'lucide-react';
+import { RotateCcw, Search } from 'lucide-react';
 
 interface Props {
   nsuStatus: { nfeLastNSU: string; cteLastNSU: string };
@@ -12,7 +12,6 @@ interface Props {
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   onSearchLocal: () => void;
-  onConsultSefaz: () => void;
   onResetNSU: (type: 'NFE' | 'CTE') => void;
 }
 
@@ -36,7 +35,6 @@ export const FilterBar: React.FC<Props> = (props) => (
       <span className="text-slate-500 mr-auto">NSU NF-e: <b className="font-mono">{props.nsuStatus.nfeLastNSU}</b> · CT-e: <b className="font-mono">{props.nsuStatus.cteLastNSU}</b></span>
       <button type="button" onClick={() => props.onResetNSU('NFE')} className="p-2 border rounded" title="Resetar NSU de NF-e"><RotateCcw className="w-3.5 h-3.5" /></button>
       <button type="button" onClick={() => props.onResetNSU('CTE')} className="p-2 border rounded" title="Resetar NSU de CT-e"><RotateCcw className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={props.onConsultSefaz} title="Busca incremental por NSU; o período acima filtra somente a base local" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex gap-1.5"><RefreshCw className="w-4 h-4" /> Sincronizar novos DF-e (NSU)</button>
     </div>
   </section>
 );

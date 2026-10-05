@@ -7,8 +7,9 @@ import {
   DocumentType,
   DownloadBatchResult
 } from '../packages/domain/types';
-import { Header } from './components/Header';
 import { AlertBanner, BannerAlertData } from './components/AlertBanner';
+import { AppShell } from './components/layout/AppShell';
+import { AppHeader } from './components/layout/AppHeader';
 import { CompanyList } from './components/Sidebar/CompanyList';
 import { CertificateCard } from './components/Sidebar/CertificateCard';
 import { FilterBar } from './components/FilterBar';
@@ -23,6 +24,7 @@ import { DocumentDetailsModal } from './components/DocumentDetailsModal';
 import { describeCombinedSyncResult, presentAfterRefresh } from '../packages/domain/sync-result';
 import { normalizePageSize, PageSize } from '../packages/domain/page-size';
 import { changePageSize } from './features/documents/page-size-controller';
+import { useUiStore } from './stores/ui.store';
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -32,6 +34,8 @@ function formatLocalDate(date: Date): string {
 }
 
 export default function App() {
+  const theme = useUiStore((state) => state.theme);
+  const toggleTheme = useUiStore((state) => state.toggleTheme);
   const companyContextRequest = useRef(0);
   const documentSearchRequest = useRef(0);
   // Estados principais
@@ -349,26 +353,20 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-100 font-sans antialiased text-slate-800">
-      {/* 1. BARRA SUPERIOR (HEADER) */}
-      <Header
-        companies={companies}
-        activeCompany={activeCompany}
-        settings={settings}
-        onSelectCompany={handleSelectCompany}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-      />
-
-      {/* Banner de Feedback / Erros */}
-      <AlertBanner
-        bannerAlert={bannerAlert}
-        onDismiss={() => setBannerAlert(null)}
-      />
-
-      {/* 2. CORPO PRINCIPAL */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* BARRA LATERAL ESQUERDA */}
-        <aside className="w-72 bg-white border-r border-slate-200 flex flex-col justify-between select-none">
+    <AppShell
+      header={(
+        <AppHeader
+          activeCompany={activeCompany}
+          environment={settings?.sefaz_environment || 'homologation'}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onSynchronize={handleConsultSefaz}
+          isSynchronizing={isSefazModalOpen}
+        />
+      )}
+      sidebar={(
+        <aside className="flex w-72 shrink-0 select-none flex-col justify-between border-r border-[var(--border-subtle)] bg-[var(--surface-sidebar)]">
           <CompanyList
             companies={companies}
             activeCompany={activeCompany}
@@ -400,9 +398,15 @@ export default function App() {
             onOpenCertModal={() => setIsCertModalOpen(true)}
           />
         </aside>
+      )}
+      toolbar={(
+        <>
+          <AlertBanner
+            bannerAlert={bannerAlert}
+            onDismiss={() => setBannerAlert(null)}
+          />
 
         {/* CONTEÚDO PRINCIPAL: DOCUMENTOS E FILTROS */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-slate-50">
           <FilterBar
             nsuStatus={nsuStatus}
             selectedDocTypes={selectedDocTypes}
@@ -414,10 +418,11 @@ export default function App() {
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             onSearchLocal={() => searchLocalDocuments()}
-            onConsultSefaz={handleConsultSefaz}
             onResetNSU={handleResetNSU}
           />
-
+        </>
+      )}
+      content={(
           <DocumentTable
             documents={documents}
             totalDocs={totalDocs}
@@ -434,16 +439,18 @@ export default function App() {
             onPageChange={(page) => searchLocalDocuments(undefined, page)}
             onPageSizeChange={(size) => void handlePageSizeChange(size)}
           />
-        </main>
-      </div>
+      )}
 
-      {/* 3. BARRA INFERIOR DE DOWNLOAD */}
-      <FooterDownloadBar
-        selectedCount={selectedDocIds.length}
-        totalOnPage={documents.length}
-        defaultStoragePath={settings?.default_storage_path}
-        onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
-      />
+      footer={(
+        <FooterDownloadBar
+          selectedCount={selectedDocIds.length}
+          totalOnPage={documents.length}
+          defaultStoragePath={settings?.default_storage_path}
+          onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
+        />
+      )}
+      overlays={(
+        <>
 
       {/* MODAIS DA APLICAÇÃO */}
       <CompanyModal
@@ -514,6 +521,8 @@ export default function App() {
         onDownloadPdf={handleDownloadPdf}
         onOpenFolder={handleOpenFolder}
       />
-    </div>
+        </>
+      )}
+    />
   );
 }
