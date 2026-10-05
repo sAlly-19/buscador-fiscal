@@ -1,5 +1,6 @@
 node_modules/
 .kilo/
+.superpowers/
 dist/
 dist-electron/
 release/
