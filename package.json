@@ -41,6 +41,10 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/archiver": "^6.0.3",
     "@types/node": "^22.13.9",
     "@types/react": "^18.3.18",
@@ -48,13 +52,13 @@
     "@types/sql.js": "^1.4.9",
     "@typescript-eslint/eslint-plugin": "^8.26.0",
     "@typescript-eslint/parser": "^8.26.0",
-    "@tailwindcss/postcss": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
     "electron": "^44.5.1",
     "electron-builder": "26.17.0",
     "eslint": "^9.21.0",
+    "jsdom": "^30.1.2",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "tailwindcss": "^4.3.3",
@@ -71,12 +75,28 @@
     "appId": "br.com.buscadorfiscal.desktop",
     "productName": "Buscador NF-e CT-e",
     "asar": true,
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
-    "extraResources": [
-      { "from": "packages/certificates/windows-bridge.ps1", "to": "packages/certificates/windows-bridge.ps1" }
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
     ],
-    "win": { "target": ["nsis"] },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+    "extraResources": [
+      {
+        "from": "packages/certificates/windows-bridge.ps1",
+        "to": "packages/certificates/windows-bridge.ps1"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
